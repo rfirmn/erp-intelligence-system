@@ -1,5 +1,6 @@
 from app.models.metadata import DataQualityLog, ETLBatchLog
 from app.models.dimensions import DimCustomer, DimDate, DimPackage
+from app.models.users import DimUser
 from app.models.facts import (
     FactBillingMonthly,
     FactCashflowMonthly,
@@ -22,6 +23,7 @@ __all__ = [
     "DimCustomer",
     "DimPackage",
     "DimDate",
+    "DimUser",
     "FactSubscriptionSnapshot",
     "FactBillingMonthly",
     "FactCashflowMonthly",

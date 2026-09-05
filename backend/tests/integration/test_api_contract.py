@@ -54,8 +54,10 @@ async def test_auth_me_contract(client: AsyncClient):
 
     payload = response.json()
     assert payload["success"] is True
-    assert payload["data"]["role"] == "admin"
-    assert "dashboard:read" in payload["data"]["permissions"]
+    assert payload["data"]["username"] == "admin@isp.net"
+    assert payload["data"]["is_active"] is True
+    assert "full_name" in payload["data"]
+
 
 
 @pytest.mark.asyncio

@@ -41,3 +41,40 @@ async def check_database_connection() -> bool:
     except Exception as e:
         logger.warning(f"Database connectivity check failed: {e}")
         return False
+
+
+async def ensure_default_dashboard_user() -> None:
+    """Ensure a default dashboard user account exists in feature_store.dim_user."""
+    try:
+        from sqlmodel import SQLModel, col, select
+        import app.models  # Register all models in metadata
+        from app.models.users import DimUser
+        from app.core.security import get_password_hash
+
+        # 1. Ensure table exists in database
+        async with engine.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.create_all)
+
+        # 2. Check and seed default user
+        async with async_session_factory() as session:
+            stmt = select(DimUser).where(col(DimUser.username) == settings.DEV_USER_USERNAME)
+            res = await session.execute(stmt)
+            existing_user = res.scalars().first()
+
+            if not existing_user:
+                logger.info(f"Seeding default dashboard user '{settings.DEV_USER_USERNAME}'...")
+                default_user = DimUser(
+                    username=settings.DEV_USER_USERNAME,
+                    email=settings.DEV_USER_USERNAME,
+                    hashed_password=get_password_hash(settings.DEV_USER_PASSWORD),
+                    full_name=settings.DEV_USER_FULL_NAME,
+                    is_active=True,
+                )
+                session.add(default_user)
+                await session.commit()
+                logger.info(f"Default dashboard user '{settings.DEV_USER_USERNAME}' created successfully.")
+            else:
+                logger.debug(f"Default dashboard user '{settings.DEV_USER_USERNAME}' already exists.")
+    except Exception as e:
+        logger.warning(f"Could not verify or seed default dashboard user: {e}")
+
