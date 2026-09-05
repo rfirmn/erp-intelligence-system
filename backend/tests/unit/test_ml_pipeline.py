@@ -79,3 +79,43 @@ def test_customer_risk_explainer():
         assert "description" in d
         assert "severity" in d
         assert "impact" in d
+
+
+def test_ml_code_config_and_presets():
+    """Verify that ml_config enables dynamic code-first experimentation without .env dependencies."""
+    from app.ml.config import HYPERPARAMETER_PRESETS, ml_config
+
+    # 1. Test defaults
+    default_hp = ml_config.resolve_hyperparameters()
+    assert default_hp["n_estimators"] == 100
+    assert default_hp["max_depth"] == 4
+    assert default_hp["learning_rate"] == 0.05
+
+    # 2. Test presets
+    fast_hp = ml_config.resolve_hyperparameters(preset="fast_prototype")
+    assert fast_hp["n_estimators"] == 30
+    assert fast_hp["max_depth"] == 3
+    assert fast_hp["learning_rate"] == 0.1
+
+    deep_hp = ml_config.resolve_hyperparameters(preset="deep_tuned")
+    assert deep_hp["n_estimators"] == 250
+    assert deep_hp["max_depth"] == 6
+
+    # 3. Test dynamic overrides
+    custom_hp = ml_config.resolve_hyperparameters(
+        preset="fast_prototype",
+        overrides={"n_estimators": 45, "learning_rate": 0.08},
+    )
+    assert custom_hp["n_estimators"] == 45
+    assert custom_hp["learning_rate"] == 0.08
+    assert custom_hp["max_depth"] == 3
+
+    # 4. Test risk categorization
+    assert ml_config.risk_thresholds.categorize(0.85) == "HIGH"
+    assert ml_config.risk_thresholds.categorize(0.50) == "MEDIUM"
+    assert ml_config.risk_thresholds.categorize(0.15) == "LOW"
+
+    # 5. Test tuning search space
+    assert "n_estimators" in ml_config.tuning.param_grid
+    assert "max_depth" in ml_config.tuning.param_grid
+    assert len(ml_config.tuning.param_grid["n_estimators"]) > 1

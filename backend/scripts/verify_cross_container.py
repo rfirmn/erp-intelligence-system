@@ -123,7 +123,7 @@ async def verify_live_extraction_and_ingestion():
 
 async def main():
     logger.info("Starting Cross-Container Verification...")
-    erp_url = settings.ERP_DATABASE_URL or "postgresql+asyncpg://erp_user:erp_secret_123@localhost:5433/isp_erp_db"
+    erp_url = settings.get_erp_database_url()
     
     if erp_url.startswith("postgresql://"):
         erp_url = erp_url.replace("postgresql://", "postgresql+asyncpg://", 1)

@@ -3,6 +3,7 @@ import logging
 from typing import Any, Dict, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.agents.base import get_domain_agent
 from app.insights.chart_generator import (
     build_billing_delay_trend_chart,
@@ -10,6 +11,7 @@ from app.insights.chart_generator import (
 )
 from app.insights.llm_client import UnifiedLLMClient
 from app.insights.validator import validate_insight_package
+from app.ml.config import ml_config
 from app.ml.registry import get_active_model_metadata
 from app.schemas.insights import (
     InsightPackage,
@@ -135,9 +137,9 @@ class InsightCompiler:
         active_meta = get_active_model_metadata() or {}
         model_meta_list = [
             {
-                "model_name": active_meta.get("model_name", "churn_xgboost"),
-                "version": active_meta.get("model_version", "1.0.0"),
-                "prediction_window": "30_days",
+                "model_name": active_meta.get("model_name", ml_config.model_identity.model_name),
+                "version": active_meta.get("model_version", ml_config.model_identity.default_version),
+                "prediction_window": active_meta.get("prediction_window", ml_config.model_identity.prediction_window),
                 "confidence_score": active_meta.get("metrics", {}).get("roc_auc", 0.88),
                 "last_trained_at": active_meta.get("trained_at", datetime.now(timezone.utc).isoformat()),
             }

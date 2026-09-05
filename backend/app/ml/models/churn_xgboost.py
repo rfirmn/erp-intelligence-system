@@ -3,6 +3,8 @@ import numpy as np
 import xgboost as xgb
 from sklearn.base import BaseEstimator, ClassifierMixin
 
+from app.ml.config import ml_config
+
 
 class ChurnXGBoostModel(BaseEstimator, ClassifierMixin):
     """XGBoost Classifier wrapper tailored for ISP Customer Churn prediction.
@@ -12,21 +14,24 @@ class ChurnXGBoostModel(BaseEstimator, ClassifierMixin):
 
     def __init__(
         self,
-        n_estimators: int = 100,
-        max_depth: int = 4,
-        learning_rate: float = 0.05,
-        subsample: float = 0.8,
-        colsample_bytree: float = 0.8,
+        n_estimators: Optional[int] = None,
+        max_depth: Optional[int] = None,
+        learning_rate: Optional[float] = None,
+        subsample: Optional[float] = None,
+        colsample_bytree: Optional[float] = None,
         scale_pos_weight: Optional[float] = None,
-        random_state: int = 42,
+        random_state: Optional[int] = None,
     ):
-        self.n_estimators = n_estimators
-        self.max_depth = max_depth
-        self.learning_rate = learning_rate
-        self.subsample = subsample
-        self.colsample_bytree = colsample_bytree
+        hp = ml_config.hyperparameters
+        self.n_estimators = n_estimators if n_estimators is not None else hp.n_estimators
+        self.max_depth = max_depth if max_depth is not None else hp.max_depth
+        self.learning_rate = learning_rate if learning_rate is not None else hp.learning_rate
+        self.subsample = subsample if subsample is not None else hp.subsample
+        self.colsample_bytree = (
+            colsample_bytree if colsample_bytree is not None else hp.colsample_bytree
+        )
         self.scale_pos_weight = scale_pos_weight
-        self.random_state = random_state
+        self.random_state = random_state if random_state is not None else hp.random_state
 
         self.model_: Optional[xgb.XGBClassifier] = None
         self.classes_: Optional[np.ndarray] = None

@@ -117,3 +117,13 @@ async def test_ml_end_to_end_flow(client: AsyncClient):
     assert cust_payload["success"] is True
     assert cust_payload["data"]["customer_id"] == cust_id
     assert cust_payload["data"]["model_version"] == "1.0.0"
+
+    # 6. Fetch Tuning Specs & Presets
+    tuning_resp = await client.get("/api/v1/ml/models/churn/tuning-specs")
+    assert tuning_resp.status_code == 200
+    tuning_payload = tuning_resp.json()
+    assert tuning_payload["success"] is True
+    assert "presets" in tuning_payload["data"]
+    assert "fast_prototype" in tuning_payload["data"]["presets"]
+    assert "deep_tuned" in tuning_payload["data"]["presets"]
+    assert "tuning_search_space" in tuning_payload["data"]

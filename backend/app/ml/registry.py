@@ -4,9 +4,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 import joblib
 
+from app.ml.config import ml_config
+
 logger = logging.getLogger("erp_ml.registry")
 
-ARTIFACTS_ROOT_DIR = Path(__file__).resolve().parent / "artifacts"
+ARTIFACTS_ROOT_DIR = ml_config.artifacts_dir
 _PIPELINE_CACHE: Optional[Any] = None
 _CACHED_VERSION: Optional[str] = None
 
@@ -26,7 +28,8 @@ def get_active_model_metadata() -> Optional[Dict[str, Any]]:
             manifest = json.load(f)
 
         version = manifest.get("active_version")
-        version_dir = ARTIFACTS_ROOT_DIR / f"churn_xgboost_v{version}"
+        model_name = manifest.get("model_name", ml_config.model_identity.model_name)
+        version_dir = ARTIFACTS_ROOT_DIR / f"{model_name}_v{version}"
         meta_file = version_dir / "metadata.json"
 
         if meta_file.exists():
@@ -59,7 +62,8 @@ def get_active_model_pipeline() -> Any:
     pipeline_path = Path(manifest.get("pipeline_path", ""))
     if not pipeline_path.exists():
         # Fallback relative to ARTIFACTS_ROOT_DIR
-        pipeline_path = ARTIFACTS_ROOT_DIR / f"churn_xgboost_v{active_version}" / "pipeline.joblib"
+        model_name = manifest.get("model_name", ml_config.model_identity.model_name)
+        pipeline_path = ARTIFACTS_ROOT_DIR / f"{model_name}_v{active_version}" / "pipeline.joblib"
 
     if not pipeline_path.exists():
         raise FileNotFoundError(f"File artifact model tidak ditemukan di: {pipeline_path}")
@@ -88,9 +92,10 @@ def list_available_models() -> List[Dict[str, Any]]:
     releases: List[Dict[str, Any]] = []
     active_manifest = get_active_model_metadata() or {}
     active_version = active_manifest.get("model_version")
+    model_name = ml_config.model_identity.model_name
 
     for p in ARTIFACTS_ROOT_DIR.iterdir():
-        if p.is_dir() and p.name.startswith("churn_xgboost_v"):
+        if p.is_dir() and (p.name.startswith(f"{model_name}_v") or "_v" in p.name):
             meta_path = p / "metadata.json"
             if meta_path.exists():
                 try:

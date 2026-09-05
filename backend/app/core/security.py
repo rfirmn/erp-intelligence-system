@@ -10,21 +10,25 @@ from app.core.exceptions import UnauthorizedError
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Default development mock user when SECURITY_ENABLED=false
-DEV_USER: Dict[str, Any] = {
-    "id": "usr-001",
-    "username": "admin@isp.net",
-    "full_name": "System Administrator (Development)",
-    "role": "admin",
-    "permissions": [
-        "dashboard:read",
-        "commercial:read",
-        "finance:read",
-        "procurement:read",
-        "inventory:read",
-        "asset:read",
-        "service:read",
-    ],
-}
+def get_dev_user() -> Dict[str, Any]:
+    return {
+        "id": settings.DEV_USER_ID,
+        "username": settings.DEV_USER_USERNAME,
+        "full_name": settings.DEV_USER_FULL_NAME,
+        "role": settings.DEV_USER_ROLE,
+        "permissions": [
+            "dashboard:read",
+            "commercial:read",
+            "finance:read",
+            "procurement:read",
+            "inventory:read",
+            "asset:read",
+            "service:read",
+        ],
+    }
+
+
+DEV_USER: Dict[str, Any] = get_dev_user()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -75,7 +79,7 @@ async def get_current_user(authorization: Optional[str] = Header(default=None)) 
         raise UnauthorizedError(message="Payload token tidak valid (sub claim hilang).")
 
     return {
-        "id": payload.get("user_id", "usr-001"),
+        "id": payload.get("user_id", settings.DEV_USER_ID),
         "username": username,
         "full_name": payload.get("full_name", username),
         "role": payload.get("role", "user"),

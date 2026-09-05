@@ -7,7 +7,9 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import col
 
+from app.core.config import settings
 from app.core.datetime_utils import utc_now
+from app.ml.config import ml_config
 from app.ml.inference.explainer import explain_customer_risk
 from app.ml.registry import get_active_model_metadata, get_active_model_pipeline
 from app.ml.training.preprocessor import ALL_FEATURE_COLUMNS
@@ -31,7 +33,7 @@ class ChurnInferenceService:
         """Execute batch inference for a snapshot date and persist results to prediction_customer_churn."""
         pipeline = get_active_model_pipeline()
         active_meta = get_active_model_metadata() or {}
-        model_version = active_meta.get("model_version", "1.0.0")
+        model_version = active_meta.get("model_version", ml_config.model_identity.default_version)
 
         # 1. Resolve snapshot_date (use latest if not specified)
         if snapshot_date is None:
@@ -111,12 +113,15 @@ class ChurnInferenceService:
         med_risk_count = 0
         low_risk_count = 0
 
+        high_thresh = ml_config.risk_thresholds.high_risk
+        med_thresh = ml_config.risk_thresholds.medium_risk
+
         for idx, row in df.iterrows():
             prob = float(row["churn_probability"])
-            if prob >= 0.70:
+            if prob >= high_thresh:
                 risk_level = "HIGH"
                 high_risk_count += 1
-            elif prob >= 0.30:
+            elif prob >= med_thresh:
                 risk_level = "MEDIUM"
                 med_risk_count += 1
             else:
@@ -185,11 +190,15 @@ class ChurnInferenceService:
     @staticmethod
     async def get_high_risk_customers(
         session: AsyncSession,
-        limit: int = 20,
-        min_probability: float = 0.70,
+        limit: Optional[int] = None,
+        min_probability: Optional[float] = None,
         snapshot_date: Optional[date] = None,
     ) -> List[Dict[str, Any]]:
         """Retrieve top high-risk customers joined with customer identity from dim_customer."""
+        resolved_limit = limit if limit is not None else settings.AGENT_HIGH_RISK_LIMIT
+        resolved_min_prob = (
+            min_probability if min_probability is not None else ml_config.risk_thresholds.high_risk
+        )
         # If snapshot_date is None, find latest snapshot
         if snapshot_date is None:
             latest_date_q = select(func.max(PredictionCustomerChurn.snapshot_date))
@@ -219,10 +228,10 @@ class ChurnInferenceService:
             )
             .where(
                 col(PredictionCustomerChurn.snapshot_date) == snapshot_date,
-                col(PredictionCustomerChurn.churn_probability) >= min_probability,
+                col(PredictionCustomerChurn.churn_probability) >= resolved_min_prob,
             )
             .order_by(col(PredictionCustomerChurn.churn_probability).desc())
-            .limit(limit)
+            .limit(resolved_limit)
         )
 
         result = await session.execute(query)

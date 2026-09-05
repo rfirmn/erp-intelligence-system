@@ -19,8 +19,26 @@ class AppException(Exception):
 
 
 class EntityNotFoundError(AppException):
-    def __init__(self, message: str = "Resource yang diminta tidak ditemukan.", details: Optional[List[Dict[str, Any]]] = None):
-        super().__init__(message=message, code="NOT_FOUND", status_code=404, details=details)
+    def __init__(
+        self,
+        message: Optional[str] = None,
+        entity_name: Optional[str] = None,
+        entity_id: Optional[Any] = None,
+        details: Optional[List[Dict[str, Any]]] = None,
+    ):
+        if message is None:
+            if entity_name and entity_id is not None:
+                message = f"{entity_name} dengan ID '{entity_id}' tidak ditemukan."
+            elif entity_name:
+                message = f"{entity_name} tidak ditemukan."
+            else:
+                message = "Resource yang diminta tidak ditemukan."
+
+        err_details = list(details) if details else []
+        if entity_name or entity_id is not None:
+            err_details.append({"entity_name": entity_name, "entity_id": str(entity_id)})
+
+        super().__init__(message=message, code="NOT_FOUND", status_code=404, details=err_details)
 
 
 class UnauthorizedError(AppException):

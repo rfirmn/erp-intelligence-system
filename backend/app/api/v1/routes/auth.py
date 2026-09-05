@@ -21,10 +21,10 @@ async def login(payload: LoginRequest, request: Request):
     # In development or initial setup, grant token with admin role
     # User credential management can be hooked to DB in later phase
     user_info = UserResponse(
-        id="usr-001",
+        id=settings.DEV_USER_ID,
         username=payload.username,
-        full_name="System Administrator" if "admin" in payload.username.lower() else "ISP Operations Analyst",
-        role="admin" if "admin" in payload.username.lower() else "analyst",
+        full_name=settings.DEV_USER_FULL_NAME if "admin" in payload.username.lower() else "ISP Operations Analyst",
+        role=settings.DEV_USER_ROLE if "admin" in payload.username.lower() else "analyst",
         permissions=[
             "dashboard:read",
             "commercial:read",
@@ -66,10 +66,10 @@ async def login(payload: LoginRequest, request: Request):
 async def get_profile(request: Request, current_user: dict = Depends(get_current_user)):
     request_id = getattr(request.state, "request_id", None)
     user_data = UserResponse(
-        id=current_user.get("id", "usr-001"),
-        username=current_user.get("username", "admin@isp.net"),
-        full_name=current_user.get("full_name", "System Administrator"),
-        role=current_user.get("role", "admin"),
+        id=current_user.get("id", settings.DEV_USER_ID),
+        username=current_user.get("username", settings.DEV_USER_USERNAME),
+        full_name=current_user.get("full_name", settings.DEV_USER_FULL_NAME),
+        role=current_user.get("role", settings.DEV_USER_ROLE),
         permissions=current_user.get("permissions", []),
     )
     return success_response(data=user_data.model_dump(), request_id=request_id)

@@ -4,12 +4,21 @@ from pydantic import BaseModel, Field
 
 
 class ModelTrainRequest(BaseModel):
-    model_version: str = Field(default="1.0.0", description="Versi model semantic yang akan dilatih")
+    model_name: Optional[str] = Field(
+        default=None, description="Nama model machine learning (default: dari konfigurasi sistem)"
+    )
+    model_version: Optional[str] = Field(
+        default=None, description="Versi model semantic yang akan dilatih (default: dari ml_config)"
+    )
+    preset: Optional[str] = Field(
+        default=None,
+        description="Profil preset hyperparameter ('default', 'fast_prototype', 'deep_tuned', 'high_recall')",
+    )
     test_size_ratio: float = Field(
         default=0.2, ge=0.05, le=0.5, description="Proporsi data temporal untuk validasi OOT"
     )
     hyperparameters: Optional[Dict[str, Any]] = Field(
-        default=None, description="Custom hyperparameter dictionary untuk XGBoost"
+        default=None, description="Custom hyperparameter dictionary untuk model"
     )
     set_as_active: bool = Field(
         default=True, description="Jika true, langsung jadikan model ini sebagai active inference model"

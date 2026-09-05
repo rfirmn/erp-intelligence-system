@@ -5,7 +5,9 @@ import re
 from typing import Any, Dict, List, Optional
 import httpx
 
+from app.core.config import settings
 from app.insights.prompts import SYSTEM_PROMPT_CRITICAL_ANALYST, build_agent_context_prompt
+from app.insights.validator import sanitize_and_parse_json
 
 logger = logging.getLogger("erp_insights.llm_client")
 
@@ -18,9 +20,22 @@ class UnifiedLLMClient:
         provider: Optional[str] = None,
         api_key: Optional[str] = None,
     ):
-        self.gemini_key = api_key or os.getenv("GEMINI_API_KEY")
-        self.openai_key = os.getenv("OPENAI_API_KEY")
-        self.provider = provider or ("gemini" if self.gemini_key else ("openai" if self.openai_key else "fallback"))
+        self.gemini_key = api_key or os.getenv("GEMINI_API_KEY") or settings.GEMINI_API_KEY
+        self.gemini_model = os.getenv("GEMINI_MODEL") or settings.GEMINI_MODEL
+        self.gemini_base_url = os.getenv("GEMINI_BASE_URL") or settings.GEMINI_BASE_URL
+        self.openai_key = os.getenv("OPENAI_API_KEY") or settings.OPENAI_API_KEY
+        self.openai_model = os.getenv("OPENAI_MODEL") or settings.OPENAI_MODEL
+        self.openai_base_url = os.getenv("OPENAI_BASE_URL") or settings.OPENAI_BASE_URL
+        self.temperature = float(os.getenv("LLM_TEMPERATURE", str(settings.LLM_TEMPERATURE)))
+        self.timeout = float(os.getenv("LLM_TIMEOUT_SECONDS", str(settings.LLM_TIMEOUT_SECONDS)))
+
+        configured_provider = provider or os.getenv("LLM_PROVIDER") or settings.LLM_PROVIDER
+        if configured_provider == "gemini" and not self.gemini_key:
+            self.provider = "fallback"
+        elif configured_provider == "openai" and not self.openai_key:
+            self.provider = "fallback"
+        else:
+            self.provider = configured_provider or "fallback"
 
     async def generate_insight_narrative(
         self,
@@ -66,51 +81,60 @@ class UnifiedLLMClient:
         )
 
     async def _call_gemini(self, prompt: str) -> Dict[str, Any]:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self.gemini_key}"
+        url = f"{self.gemini_base_url.rstrip('/')}/models/{self.gemini_model}:generateContent"
+        headers = {
+            "x-goog-api-key": self.gemini_key or "",
+            "Content-Type": "application/json",
+        }
         payload = {
+            "system_instruction": {
+                "parts": [
+                    {"text": SYSTEM_PROMPT_CRITICAL_ANALYST}
+                ]
+            },
             "contents": [
                 {
+                    "role": "user",
                     "parts": [
-                        {"text": SYSTEM_PROMPT_CRITICAL_ANALYST},
-                        {"text": prompt},
+                        {"text": prompt}
                     ]
                 }
             ],
             "generationConfig": {
-                "temperature": 0.2,
+                "temperature": self.temperature,
                 "responseMimeType": "application/json",
             },
         }
 
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(url, json=payload)
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            resp = await client.post(url, headers=headers, json=payload)
             resp.raise_for_status()
             data = resp.json()
             raw_text = data["candidates"][0]["content"]["parts"][0]["text"]
-            return json.loads(raw_text)
+            return sanitize_and_parse_json(raw_text)
 
     async def _call_openai(self, prompt: str) -> Dict[str, Any]:
-        url = "https://api.openai.com/v1/chat/completions"
+        url = f"{self.openai_base_url.rstrip('/')}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.openai_key}",
             "Content-Type": "application/json",
         }
         payload = {
-            "model": "gpt-4o-mini",
+            "model": self.openai_model,
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT_CRITICAL_ANALYST},
                 {"role": "user", "content": prompt},
             ],
-            "temperature": 0.2,
+            "temperature": self.temperature,
             "response_format": {"type": "json_object"},
         }
 
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
             resp = await client.post(url, headers=headers, json=payload)
             resp.raise_for_status()
             data = resp.json()
             raw_text = data["choices"][0]["message"]["content"]
-            return json.loads(raw_text)
+            return sanitize_and_parse_json(raw_text)
 
     def _generate_grounded_fallback(
         self,

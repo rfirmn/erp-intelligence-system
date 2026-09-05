@@ -36,19 +36,31 @@ class BillingExtractor(BaseExtractor):
         # Live ERP queries for sales_invoice
         invoice_query = """
             SELECT 
-                id AS source_id,
-                customer_subscription_id,
-                invoice_number,
-                invoice_period,
-                invoice_date,
-                due_date,
-                total_amount,
-                payment_status,
-                updated_at AS source_updated_at
-            FROM sales_invoice
-            WHERE (CAST(:since AS TIMESTAMP) IS NULL OR updated_at > CAST(:since AS TIMESTAMP))
-              AND updated_at <= :until
-            ORDER BY updated_at ASC
+                si.id AS source_id,
+                si.customer_subscription_id,
+                cs.customer_id,
+                si.invoice_number,
+                si.invoice_period,
+                si.invoice_date,
+                si.due_date,
+                si.total_amount::float AS total_amount,
+                si.payment_status,
+                COALESCE(SUM(sp.amount), 0.0)::float AS paid_amount,
+                CASE 
+                    WHEN MAX(sp.payment_date) IS NOT NULL AND MAX(sp.payment_date) > si.due_date 
+                        THEN (MAX(sp.payment_date) - si.due_date)::int
+                    WHEN si.payment_status IN ('OVERDUE', 'UNPAID') AND CURRENT_DATE > si.due_date 
+                        THEN (CURRENT_DATE - si.due_date)::int
+                    ELSE 0 
+                END AS days_late,
+                si.updated_at AS source_updated_at
+            FROM sales_invoice si
+            LEFT JOIN customer_subscription cs ON si.customer_subscription_id = cs.id
+            LEFT JOIN sales_payment sp ON si.id = sp.sales_invoice_id AND sp.payment_status = 'SUCCESS'
+            WHERE (CAST(:since AS TIMESTAMP) IS NULL OR si.updated_at > CAST(:since AS TIMESTAMP))
+              AND si.updated_at <= :until
+            GROUP BY si.id, cs.customer_id
+            ORDER BY si.updated_at ASC
             LIMIT :limit;
         """
         payment_query = """
