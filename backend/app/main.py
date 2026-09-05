@@ -7,8 +7,10 @@ from fastapi.responses import RedirectResponse
 
 from app.api.v1 import api_v1_router
 from app.core.config import settings
+from sqlmodel import SQLModel
+import app.models  # Register all models in metadata
 from app.core.handlers import register_exception_handlers
-from app.core.session import check_database_connection, engine
+from app.core.session import check_database_connection, engine, ensure_default_dashboard_user
 from app.ingestion.extractors.erp_client import erp_connector
 from app.ingestion.scheduler import start_scheduler, stop_scheduler
 
@@ -30,6 +32,12 @@ async def lifespan(app: FastAPI):
     is_db_connected = await check_database_connection()
     if is_db_connected:
         logger.info("Connected to PostgreSQL Feature Store database successfully.")
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(SQLModel.metadata.create_all)
+            await ensure_default_dashboard_user()
+        except Exception as e:
+            logger.warning(f"Could not auto-create tables or seed user: {e}")
     else:
         logger.warning(
             "Feature Store database is not reachable at startup. System starting in DEGRADED mode."

@@ -77,6 +77,11 @@ async def init_feature_store_schema():
         await conn.run_sync(SQLModel.metadata.create_all)
 
     await engine.dispose()
+
+    # 4. Seed default dashboard user
+    from app.core.session import ensure_default_dashboard_user
+    await ensure_default_dashboard_user()
+
     logger.info("Feature Store initialization completed successfully!")
 
 

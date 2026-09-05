@@ -2,12 +2,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 import jwt
 from fastapi import Depends, Header
-from passlib.context import CryptContext
+import bcrypt
 
 from app.core.config import settings
 from app.core.exceptions import UnauthorizedError
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Default development mock user when SECURITY_ENABLED=false
 def get_dev_user() -> Dict[str, Any]:
@@ -15,16 +13,8 @@ def get_dev_user() -> Dict[str, Any]:
         "id": settings.DEV_USER_ID,
         "username": settings.DEV_USER_USERNAME,
         "full_name": settings.DEV_USER_FULL_NAME,
-        "role": settings.DEV_USER_ROLE,
-        "permissions": [
-            "dashboard:read",
-            "commercial:read",
-            "finance:read",
-            "procurement:read",
-            "inventory:read",
-            "asset:read",
-            "service:read",
-        ],
+        "email": settings.DEV_USER_USERNAME,
+        "is_active": True,
     }
 
 
@@ -32,11 +22,14 @@ DEV_USER: Dict[str, Any] = get_dev_user()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8")[:72], hashed_password.encode("utf-8"))
+    except Exception:
+        return False
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8")[:72], bcrypt.gensalt()).decode("utf-8")
 
 
 def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
@@ -79,9 +72,9 @@ async def get_current_user(authorization: Optional[str] = Header(default=None)) 
         raise UnauthorizedError(message="Payload token tidak valid (sub claim hilang).")
 
     return {
-        "id": payload.get("user_id", settings.DEV_USER_ID),
+        "id": str(payload.get("user_id", settings.DEV_USER_ID)),
         "username": username,
         "full_name": payload.get("full_name", username),
-        "role": payload.get("role", "user"),
-        "permissions": payload.get("permissions", ["dashboard:read"]),
+        "email": payload.get("email", username),
+        "is_active": payload.get("is_active", True),
     }

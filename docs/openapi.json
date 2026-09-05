@@ -259,8 +259,8 @@
         "tags": [
           "Autentikasi"
         ],
-        "summary": "Login Pengguna",
-        "description": "Menghasilkan access token JWT Bearer untuk mengakses endpoint terlindungi.",
+        "summary": "Login Pengguna Dashboard",
+        "description": "Memvalidasi kredensial pengguna terhadap basis data dan menghasilkan access token JWT Bearer.",
         "operationId": "login_api_v1_auth_login_post",
         "requestBody": {
           "content": {
@@ -302,7 +302,7 @@
           "Autentikasi"
         ],
         "summary": "Profil Pengguna Aktif",
-        "description": "Mengembalikan profil dan permission pengguna dari token JWT aktif.",
+        "description": "Mengembalikan profil pengguna terotentikasi dari token JWT aktif.",
         "operationId": "get_profile_api_v1_auth_me_get",
         "parameters": [
           {
@@ -2811,20 +2811,23 @@
             "title": "Full Name",
             "description": "Nama lengkap pengguna"
           },
-          "role": {
-            "type": "string",
-            "title": "Role",
-            "description": "Peran pengguna (e.g. admin, analyst, viewer)",
-            "default": "user"
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "Alamat email akun"
           },
-          "permissions": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Permissions",
-            "description": "Daftar hak akses pengguna",
-            "default": []
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "description": "Status keaktifan akun pengguna",
+            "default": true
           }
         },
         "type": "object",

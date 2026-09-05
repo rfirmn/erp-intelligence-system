@@ -1,4 +1,4 @@
-from typing import List
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -11,8 +11,8 @@ class UserResponse(BaseModel):
     id: str = Field(..., description="ID unik pengguna")
     username: str = Field(..., description="Username pengguna")
     full_name: str = Field(..., description="Nama lengkap pengguna")
-    role: str = Field(default="user", description="Peran pengguna (e.g. admin, analyst, viewer)")
-    permissions: List[str] = Field(default=[], description="Daftar hak akses pengguna")
+    email: Optional[str] = Field(default=None, description="Alamat email akun")
+    is_active: bool = Field(default=True, description="Status keaktifan akun pengguna")
 
 
 class TokenResponse(BaseModel):

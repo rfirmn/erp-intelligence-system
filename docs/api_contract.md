@@ -72,16 +72,16 @@ Seluruh respons dari API (baik response sukses kode `2xx`, client error `4xx`, m
 
 ---
 
-## 3. Autentikasi & Otorisasi
+## 3. Autentikasi Dashboard (Login & Sesi Pengguna)
 
-Menggunakan mekanisme **OAuth2 Bearer Token (JWT)**.
+Sistem menggunakan mekanisme **OAuth2 Bearer Token (JWT)** berbasis basis data PostgreSQL (`feature_store.dim_user`) dengan model akses tunggal (*single-tier dashboard operator/analyst access* tanpa sistem diferensiasi role). Setiap pengguna terotentikasi memiliki hak akses penuh terhadap wawasan analitik dashboard.
 
-Header yang wajib dikirim pada endpoint terlindungi:
+Header yang dikirimkan pada endpoint terlindungi:
 ```http
 Authorization: Bearer <access_token>
 ```
 
-> **Catatan Mode Development**: Jika flag `SECURITY_ENABLED=false` disetel di backend environment, middleware keamanan akan melewatkan autentikasi dan menganggap request berasal dari default development user (`admin@isp-intelligence.local`).
+> **Catatan Mode Development**: Jika flag `SECURITY_ENABLED=false` disetel di backend environment, middleware keamanan akan melewatkan verifikasi dan menganggap request berasal dari default development user (`admin@isp.net`).
 
 ### 3.1 Login (Dapatkan Token)
 - **Endpoint**: `POST /api/v1/auth/login`
@@ -102,10 +102,11 @@ Authorization: Bearer <access_token>
       "token_type": "bearer",
       "expires_in": 86400,
       "user": {
-        "id": "usr-001",
+        "id": "1",
         "username": "admin@isp.net",
-        "full_name": "System Administrator",
-        "role": "admin"
+        "full_name": "Dashboard Administrator",
+        "email": "admin@isp.net",
+        "is_active": true
       }
     },
     "meta": {
@@ -125,11 +126,11 @@ Authorization: Bearer <access_token>
   {
     "success": true,
     "data": {
-      "id": "usr-001",
+      "id": "1",
       "username": "admin@isp.net",
-      "full_name": "System Administrator",
-      "role": "admin",
-      "permissions": ["dashboard:read", "commercial:read", "finance:read", "procurement:read", "inventory:read", "asset:read", "service:read"]
+      "full_name": "Dashboard Administrator",
+      "email": "admin@isp.net",
+      "is_active": true
     },
     "meta": {
       "request_id": "8c454e99-873b-486a-8b89-13e2bb97f744",
