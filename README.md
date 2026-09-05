@@ -1,99 +1,332 @@
 # ERP Intelligence Dashboard — Backend
 
-> AI-powered decision-support system for an ISP, built on top of an existing ERP database.
+> AI-Powered Decision-Support System for an Internet Service Provider (ISP), built on top of an Enterprise Resource Planning (ERP) database.
 
-## What This Project Does
+[![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![SQLModel](https://img.shields.io/badge/SQLModel-0.0.21+-blue.svg)](https://sqlmodel.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%20%2B%20pgvector-336791.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![LangGraph](https://img.shields.io/badge/AI-LangGraph%20%2B%20Gemini%20%2F%20OpenAI-orange.svg)](https://langchain-ai.github.io/langgraph/)
+[![Tests](https://img.shields.io/badge/Tests-46%20Passed%20(100%25)-brightgreen.svg)]()
+[![Types](https://img.shields.io/badge/Type%20Safety-Pyright%20Verified%20(0%20errors)-blueviolet.svg)]()
 
-This backend ingests data from an external ISP ERP system (managed by a separate data engineering team), transforms it into a purpose-built **Feature Store**, runs **predictive ML models** per business domain, orchestrates **LangGraph AI agents** to reason about predictions and data, and exposes the resulting insights through a **FastAPI** REST API consumed by a separate frontend dashboard.
+---
 
-The system covers **six ERP domains**: Commercial/CRM, Finance, Procurement, Inventory, Asset Management, and Service/Operations.
+## 📌 Daftar Isi
 
-## Architecture Overview
+1. [Gambaran Sistem](#-gambaran-sistem)
+2. [Arsitektur 5 Zona](#-arsitektur-5-zona)
+3. [Modul Domain Bisnis & Audit BI](#-modul-domain-bisnis--audit-bi)
+4. [Sistem Autentikasi Dashboard](#-sistem-autentikasi-dashboard)
+5. [Tech Stack](#-tech-stack)
+6. [Struktur Direktori Proyek](#-struktur-direktori-proyek)
+7. [Panduan Instalasi & Menjalankan](#-panduan-instalasi--menjalankan)
+   - [A. Prasyarat](#a-prasyarat)
+   - [B. Setup Lingkungan Lokal (Bare Metal / Virtualenv)](#b-setup-lingkungan-lokal-bare-metal--virtualenv)
+   - [C. Menjalankan via Docker Compose](#c-menjalankan-via-docker-compose)
+   - [D. Setup Mock ERP Database (Live Ingestion)](#d-setup-mock-erp-database-live-ingestion)
+8. [Pengujian & Penjaminan Kualitas](#-pengujian--penjaminan-kualitas)
+9. [Dokumentasi API & Integrasi Frontend](#-dokumentasi-api--integrasi-frontend)
+10. [Status Proyek](#-status-proyek)
 
-The system flows through five zones:
+---
+
+## 🚀 Gambaran Sistem
+
+Backend **ERP Intelligence Dashboard** adalah platform analitik dan pendukung keputusan berbasis kecerdasan buatan (*AI decision-support system*) yang dirancang khusus untuk operasional penyedia layanan internet (ISP).
+
+Sistem ini mengekstrak data operasional dari basis data ERP sumber (dikelola secara terpisah oleh tim Data Engineering), mentransformasikannya ke dalam **Feature Store** analitik PostgreSQL, melatih dan menjalankan model prediktif **Machine Learning (XGBoost)**, mengorkestrasikan **LangGraph AI Agents** dengan *Safe SQL Tools*, mensintesis rekomendasi naratif berbasis LLM (**Google Gemini / OpenAI / Rule-Based Fallback**), dan menghasilkan visualisasi grafik interaktif **Vega-Lite** serta tabel audit tabular yang disajikan melalui REST API **FastAPI**.
+
+---
+
+## 🏛 Arsitektur 5 Zona
+
+Aliran data sistem terbagi ke dalam lima zona berurutan:
+
+```mermaid
+flowchart LR
+    subgraph Z1["Zone 1: ERP Data Provisioning"]
+        ERP[(External Source ERP)] -->|Batch Watermark Sync| EXT[Extractors & Transformers]
+        EXT -->|Idempotent Upsert| FS[(Feature Store PostgreSQL)]
+    end
+
+    subgraph Z2["Zone 2: Predictive ML Layer"]
+        FS -->|Feature Snapshots| ML[MLOps Training & Inference Engine]
+        ML -->|Predictions & Risk Tiers| PRED[(prediction_customer_churn)]
+    end
+
+    subgraph Z3["Zone 3: LangGraph Agentic Layer"]
+        PRED & FS -->|Domain Queries| AGT[LangGraph Agents + SafeSQLTool]
+    end
+
+    subgraph Z4["Zone 4: Insight Generation"]
+        AGT -->|Grounded Evidence| LLM[Compiler: LLM Synthesis + Vega-Lite Specs]
+    end
+
+    subgraph Z5["Zone 5: Presentation API"]
+        LLM -->|DataEnvelope| API[FastAPI REST API /api/v1/...]
+        API -->|JSON Contract| FE[Frontend Dashboard]
+    end
+```
+
+1. **Zone 1: ERP Data Provisioning (Batch Extraction & Ingestion)**
+   - Ekstraksi *watermark-based* dari ERP sumber (atau generator mock internal jika mode offline aktif).
+   - Skema Staging (`stg_*`) $\to$ Dimensi/Fakta SCD Type 2 (`dim_*`, `fact_*`) $\to$ Agregasi analitik (`feature_*`).
+   - Dilengkapi audit logger `etl_batch_log` dan validasi kualitas `data_quality_log`.
+2. **Zone 2: Predictive Machine Learning Layer (MLOps)**
+   - Pipeline pelatihan end-to-end dengan penanganan ketidakseimbangan kelas (*class imbalance*), standarisasi skalar, dan XGBoost Classifier.
+   - Penjelasan faktor risiko (*risk factor explainer*) per pelanggan dan pendaftaran model (*model registry* berbasis metadata JSON & artifact joblib).
+3. **Zone 3: LangGraph Agentic Layer (Autonomous Reasoning)**
+   - Agen modular per domain bisnis yang dilengkapi `SafeSQLQueryTool` (validasi AST SQL read-only, pembatasan kuota baris, dan proteksi injeksi query).
+4. **Zone 4: Insight Synthesis & Visualization Engine**
+   - Mensintesis temuan agen ke dalam narasi eksekutif berbahasa Indonesia dengan rekomendasi strategis menggunakan Google Gemini 2.5/1.5 Flash atau OpenAI.
+   - Menyediakan mesin *fallback deterministik rule-based* otomatis jika API eksternal mengalami kendala jaringan atau tanpa kuota/kunci API.
+   - Menghasilkan spesifikasi visualisasi grafik deklaratif berbasis **Vega-Lite v5**.
+5. **Zone 5: Presentation API (Standardized JSON Envelope)**
+   - Semua respons dibungkus dalam schema standar `DataEnvelope[T]` (`data`, `error`, `meta`).
+   - Menyediakan ringkasan eksekutif (*Overview*), drill-down per modul, dan data tabular lengkap untuk audit (*BI audit table*).
+
+---
+
+## 📊 Modul Domain Bisnis & Audit BI
+
+Backend menyajikan wawasan analitik mendalam pada 6 domain operasional utama:
+
+| Domain | Endpoint API | Metrik Utama (KPIs) | Visualisasi Grafik (Vega-Lite) | Tabel Audit Tabular |
+|---|---|---|---|---|
+| **Overview** | `/api/v1/insights/overview` | Total MRR, Churn Rate, Cashflow, Stockout Risk, SLA | Tren Performa Bisnis Lintas Modul | Ringkasan Status Modul & Health Index |
+| **Commercial** | `/api/v1/insights/commercial` | Total MRR, Pelanggan Berisiko Tinggi, ARPU | Distribusi Risiko Churn Pelanggan | Riwayat & Peringkat Risiko Pelanggan (`customer_id`, paket, skor churn) |
+| **Finance** | `/api/v1/insights/finance` | Net Cashflow, Total Piutang (AR), Beban OPEX | Analisis Umur Piutang (*AR Aging*) | Daftar Faktur Tertunggak (`invoice_id`, customer, due date, saldo) |
+| **Procurement** | `/api/v1/insights/procurement` | Total Belanja PO, Rata-rata Lead Time, PO Pending | Tren Lead Time & Kinerja Vendor | Riwayat Purchase Order (`po_number`, vendor, status, lead days) |
+| **Inventory** | `/api/v1/insights/inventory` | Nilai Total Stok, Barang Kritis, Rasio Turn Over | Proyeksi Depresiasi Stok Gudang | Status & Audit SKU Gudang (`sku`, item, stok aktual, level reorder) |
+| **Asset** | `/api/v1/insights/asset` | Indeks Kesehatan Aset, Aset Butuh Servis, Nilai Buku | Distribusi Status & Kesehatan Aset | Inventaris Aset Operasional (`asset_id`, perangkat, lokasi, kondisi) |
+| **Service** | `/api/v1/insights/service` | Kepatuhan SLA, Rata-rata MTTR, Tiket Gangguan Aktif | Kepatuhan SLA per Kategori Insiden | Audit Tiket Gangguan NOC (`ticket_id`, problem, MTTR, status SLA) |
+
+---
+
+## 🔐 Sistem Autentikasi Dashboard
+
+Sistem autentikasi menggunakan model **Single-Tier Dashboard Login (Tanpa Sistem Role atau Otorisasi Berjenjang)**:
+- Kredensial disimpan langsung di dalam tabel database Feature Store `feature_store.dim_user`.
+- Password dienkripsi menggunakan pustaka native **bcrypt** (tahan terhadap Python 3.14/modern hashing).
+- Sesi dikelola dengan access token berstandar **JWT Bearer**.
+- **Auto-Provisioning**: Saat backend dijalankan pertama kali, tabel dibuat secara otomatis dan akun default disuntikkan (*seeded*).
+
+### Kredensial Pengguna Default:
+- **Username / Email**: `admin@isp.net`
+- **Password**: `SecretPassword123!`
+- **Endpoint Login**: `POST /api/v1/auth/login`
+- **Endpoint Profil**: `GET /api/v1/auth/me`
+
+---
+
+## 💻 Tech Stack
+
+- **Framework Web & API**: FastAPI (Python 3.11 - 3.14) & Uvicorn (ASGI)
+- **ORM & Data Layer**: SQLModel + SQLAlchemy 2.0 (Asyncio) + asyncpg
+- **Database Utama**: PostgreSQL 16 + pgvector (Feature Store)
+- **Task Scheduling**: APScheduler (Background cron & interval jobs)
+- **Machine Learning**: XGBoost, Scikit-Learn, Pandas, NumPy, Joblib
+- **Agentic AI**: LangGraph, LangChain Core
+- **LLM Integration**: Google Gemini API (v1beta), OpenAI API / Ollama / vLLM, Deterministic Rule Engine
+- **Spesifikasi Visualisasi**: Pydantic v2 + Vega-Lite JSON Spec
+- **Type Checker**: Pyright (Zero errors / 100% type safety)
+- **Testing**: Pytest, Pytest-Asyncio, HTTPX
+
+---
+
+## 📁 Struktur Direktori Proyek
 
 ```
-1. ERP Data Provisioning    →  Batch extraction from source ERP DB into Feature Store
-2. Predictive ML Layer      →  Domain-specific ML models (churn, cash flow, stockout, etc.)
-3. LangGraph Agentic Layer  →  One agent per ERP domain with shared query tools
-4. Insight Generation       →  LLM narrative synthesis + Vega-Lite chart spec generation
-5. Presentation API         →  FastAPI endpoints serving validated insight packages
-```
-
-The source ERP database is **read-only and externally managed**. This project owns its own PostgreSQL Feature Store database (separate from the ERP). Data flows via scheduled batch jobs, not real-time connections.
-
-See [`docs/design_arsitektur.md`](docs/design_arsitektur.md) for the full Mermaid architecture diagram.
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| API & Web Framework | FastAPI (Python) |
-| ORM & Database Driver | SQLModel + asyncpg |
-| Database | PostgreSQL (+ pgvector for RAG/embeddings) |
-| Task Scheduling | APScheduler / Celery + Redis |
-| AI Agent Framework | LangGraph (+ LangChain) |
-| Validation & Charts | Pydantic + Vega-Lite |
-| ML (planned) | XGBoost, time-series models |
-| External Context (Service domain) | Qdrant (NOC ticket history) |
-
-## Directory Structure
-
-```
-project/                            ← root repo
-├── README.md
-├── onboarding_agents.md            # Panduan orientasi agent & arsitektur sistem
-├── docs/                           # Dokumentasi & source of truth
-│   ├── task.md                     # Development phases & tech stack
-│   ├── design_arsitektur.md        # Architecture diagram (Mermaid)
-│   ├── feature_store_schema_design.md  # Feature Store schema & DDL
-│   ├── api_contract.md             # API Contract frontend-backend & envelope
-│   └── openapi.json                # OpenAPI specification dump
-└── backend/                        # Seluruh codebase backend (Python)
-    ├── .gitignore
-    ├── app/                        # FastAPI application package
-    │   ├── api/v1/routes/          # Route handlers per modul (dashboard, commercial, ...)
-    │   ├── core/                   # Config, security (JWT), logging, exceptions
-    │   ├── models/                 # SQLModel table definitions (Feature Store DDL)
-    │   ├── schemas/                # Pydantic request/response models
-    │   ├── ingestion/
-    │   │   ├── extractors/         # Watermark-based ERP query builders per domain
-    │   │   ├── transformers/       # Staging → dim/fact → feature logic
-    │   │   └── jobs/               # Scheduled job definitions
-    │   ├── agents/
-    │   │   └── tools/              # Shared agent tools (ERP SQL query, Qdrant, dll.)
-    │   ├── ml/
-    │   │   ├── models/             # Model class definitions
-    │   │   ├── training/           # Training pipelines
-    │   │   └── inference/          # Inference / prediction logic
-    │   └── insights/               # Compiler, LLM narrative, chart generator, validator
-    ├── alembic/versions/           # Database migrations (Alembic)
-    ├── scripts/                    # Script pembantu (mis. export_openapi.py)
+project/                                  ← Root repositori
+├── README.md                             # Dokumentasi komprehensif sistem backend
+├── docker-compose.yml                    # Orkestrasi Docker untuk PostgreSQL & Backend API
+├── docs/                                 # Dokumentasi living ground truth
+│   ├── api_contract.md                   # Kontrak API frontend-backend (Ground Truth)
+│   ├── openapi.json                      # Dump skema OpenAPI resmi (sinkron dengan codebase)
+│   ├── design_arsitektur.md              # Diagram arsitektur Mermaid
+│   ├── feature_store_schema_design.md    # DDL & desain skema Feature Store
+│   └── task.md                           # Rincian tahapan pembangunan sistem
+├── mock_erp_data_engineer/               # Lingkungan mandiri database Mock ERP eksternal
+│   ├── docker-compose.yml                # Database Mock ERP (port 5433)
+│   ├── sql/                              # DDL (21 tabel DBML) & Realistic Seeding
+│   └── scripts/verify_erp_db.py          # Skrip verifikasi tabel ERP sumber
+└── backend/                              # Seluruh aplikasi FastAPI backend
+    ├── requirements.txt                  # Dependensi Python
+    ├── Dockerfile                        # Konfigurasi container backend
+    ├── pytest.ini                        # Konfigurasi pengujian pytest
+    ├── .env.example                      # Template variabel lingkungan
+    ├── app/
+    │   ├── main.py                       # Inisialisasi FastAPI & lifespan startup
+    │   ├── core/                         # Konfigurasi, database session, security, error handler
+    │   ├── models/                       # Definisi tabel SQLModel (staging, dim, fact, feature, log, user)
+    │   ├── schemas/                      # Pydantic schemas (auth, dashboard, ingestion, ml, common)
+    │   ├── ingestion/                    # Engine ekstraksi data ERP, transformator & background jobs
+    │   ├── ml/                           # Pipeline pelatihan ML, inference & customer risk explainer
+    │   ├── agents/                       # Agen LangGraph & SafeSQLQueryTool
+    │   ├── insights/                     # Compiler insight, LLM narrative generator & chart generator
+    │   └── api/v1/routes/                # Router endpoint API (/auth, /dashboard, /ingestion, /ml)
+    ├── scripts/                          # Skrip otomasi (export_openapi, init_db, dll.)
     └── tests/
-        ├── unit/                   # Unit tests (extraction, transformation)
-        └── integration/            # Integration tests (API contract, DB)
+        ├── unit/                         # Unit tests (agent tools, insight engine, ml pipeline)
+        └── integration/                  # Integration tests (auth DB, API contract, live ingestion, BI)
 ```
 
-## Development Phases
+---
 
-The project follows five sequential phases (detailed in [`docs/task.md`](docs/task.md)):
+## 🛠 Panduan Instalasi & Menjalankan
 
-1. **Infrastructure & Database** — Project setup, Feature Store DDL, auth middleware
-2. **Ingestion Pipeline** — Batch extraction jobs, staging → feature transformations, scheduler
-3. **ML & LangGraph Integration** — Predictive models, agent configuration, insight engine
-4. **API Endpoints** — Dashboard API, per-module drill-down, optional Q&A trigger
-5. **Stabilization & Deployment** — Testing, CI/CD, staging deployment
+### A. Prasyarat
+- **Python**: Versi 3.11 s/d 3.14
+- **PostgreSQL**: Versi 16+ (Lokal atau via Docker)
+- **Node.js**: (Opsional, jika ingin menjalankan type-check `pyright`)
+- **Docker & Docker Compose**: (Disarankan untuk isolasi database)
 
-## Key Documentation
+---
 
-| Document | Purpose |
-|---|---|
-| [`onboarding_agents.md`](onboarding_agents.md) | Agent handoff document — architecture context, constraints, and caveats |
-| [`docs/api_contract.md`](docs/api_contract.md) | Ground truth API contract between backend and frontend (envelope, mock endpoints, schemas) |
-| [`docs/task.md`](docs/task.md) | Development phases, tech stack, scope |
-| [`docs/design_arsitektur.md`](docs/design_arsitektur.md) | Full architecture diagram (Mermaid flowchart) |
-| [`docs/feature_store_schema_design.md`](docs/feature_store_schema_design.md) | Feature Store schema design, DDL, extraction strategy, naming conventions |
+### B. Setup Lingkungan Lokal (Bare Metal / Virtualenv)
 
-## Status
+#### 1. Masuk ke direktori backend dan buat virtual environment:
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+```
 
-🟡 **Early stage** — Project foundation and documentation. No application code implemented yet.
+#### 2. Pasang seluruh dependensi Python:
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+#### 3. Salin dan sesuaikan variabel lingkungan:
+```bash
+cp .env.example .env
+```
+> **Catatan Konfigurasi:**
+> - Pastikan `POSTGRES_USER`, `POSTGRES_PASSWORD`, dan `POSTGRES_DB` sesuai dengan server PostgreSQL lokal Anda.
+> - Masukkan `GEMINI_API_KEY` jika ingin menggunakan model LLM Gemini langsung. Jika dibiarkan kosong, backend otomatis memakai mode *deterministic rule-based fallback* yang aman dan cepat.
+> - Biarkan `ERP_MOCK_DATA=true` jika ingin menjalankan ingestion secara lokal tanpa database ERP eksternal.
+
+#### 4. Inisialisasi Basis Data & Seed User Default:
+Jalankan skrip inisialisasi untuk membuat semua schema (`stg_*`, `dim_*`, `fact_*`, `feature_*`, `etl_*`) dan mendaftarkan user default:
+```bash
+python scripts/init_db.py
+```
+
+#### 5. Jalankan Backend Server:
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+Server akan aktif di:
+- **API Base URL**: `http://localhost:8000`
+- **Swagger UI Interactive**: `http://localhost:8000/docs`
+- **ReDoc Documentation**: `http://localhost:8000/redoc`
+
+---
+
+### C. Menjalankan via Docker Compose
+
+Jika ingin menjalankan PostgreSQL Feature Store dan Backend API sekaligus di dalam kontainer:
+
+```bash
+# Dari root project
+docker compose up -d --build
+```
+- PostgreSQL Feature Store akan berjalan di port host **`5434`**.
+- Backend API akan aktif di port host **`8000`**.
+
+Untuk menghentikan kontainer:
+```bash
+docker compose down
+```
+
+---
+
+### D. Setup Mock ERP Database (Live Ingestion)
+
+Jika Anda ingin menguji integrasi pipeline ingestion langsung terhadap database operasional ERP sungguhan (dikelola oleh data engineer):
+
+```bash
+# Buka terminal baru dan masuk ke folder mock ERP
+cd mock_erp_data_engineer
+docker compose up -d
+
+# Verifikasi ketersediaan 21 tabel dan data seed ERP
+python scripts/verify_erp_db.py
+```
+Database sumber ERP akan aktif di port **`5433`** (`postgresql://erp_user:erp_secret_123@localhost:5433/isp_erp_db`). Pada file `backend/.env`, ubah:
+```ini
+ERP_MOCK_DATA=false
+ERP_DB_PORT=5433
+```
+Backend sekarang akan mengekstrak data dari database ERP riil setiap kali trigger sinkronisasi dijalankan.
+
+---
+
+## 🧪 Pengujian & Penjaminan Kualitas
+
+Seluruh endpoint, logika ML, integrasi agen, dan autentikasi telah diuji secara menyeluruh.
+
+### Menjalankan Seluruh Rangkaian Pengujian:
+```bash
+cd backend
+pytest tests/ -v
+```
+*Hasil: **46 passed** (100% lolos tanpa kegagalan).*
+
+### Menjalankan Pengujian Spesifik:
+```bash
+# 1. Tes Autentikasi Basis Data (Login & Profil Sesi)
+pytest tests/integration/test_auth_db.py -v
+
+# 2. Tes Kepatuhan Kontrak API (API Contract Conformance)
+pytest tests/integration/test_api_contract.py -v
+
+# 3. Tes Integrasi Wawasan BI 6 Modul & Tabel Audit
+pytest tests/integration/test_phase4_api.py -v
+
+# 4. Tes Pipeline MLOps & Machine Learning
+pytest tests/integration/test_mlops_pipeline_real.py -v
+```
+
+### Verifikasi Tipe Data Statis (Type Safety):
+```bash
+npx pyright backend/app
+```
+*Hasil: **0 errors, 0 warnings, 0 informations**.*
+
+---
+
+## 📖 Dokumentasi API & Integrasi Frontend
+
+Untuk pengembang Frontend, dokumentasi dan kontrak API tersinkronisasi secara otomatis:
+
+1. **API Contract Markdown (Living Ground Truth)**:
+   - Terletak di [`docs/api_contract.md`](docs/api_contract.md).
+   - Memuat struktur amplop JSON standar `DataEnvelope`, header request, format error, serta payload contoh untuk seluruh modul.
+2. **OpenAPI Specification (JSON Dump)**:
+   - Terletak di [`docs/openapi.json`](docs/openapi.json).
+   - Dapat diimpor langsung ke Postman, Insomnia, atau digunakan dengan `openapi-typescript` / Swagger Codegen.
+3. **Ekspor Ulang Skema OpenAPI**:
+   Jika terdapat penambahan rute atau modifikasi skema, ekspor ulang dengan:
+   ```bash
+   python backend/scripts/export_openapi.py
+   ```
+
+---
+
+## 📈 Status Proyek
+
+| Fase Pengembangan | Status | Keterangan |
+|---|---|---|
+| **Fase 1: Infrastruktur & Database** | 🟢 Selesai | PostgreSQL Feature Store DDL, koneksi asyncpg, CORS, dan middleware error. |
+| **Fase 2: Pipeline Ingestion** | 🟢 Selesai | Batch extraction jobs, transformasi Staging $\to$ Dim/Fact SCD-2, APScheduler. |
+| **Fase 3: ML & LangGraph Integration** | 🟢 Selesai | XGBoost churn model, MLOps registry, agen LangGraph dengan SafeSQLTool, Insight Compiler. |
+| **Fase 4: BI Dashboard & Audit API** | 🟢 Selesai | Overview & 6 modul drill-down dengan tabel audit tabular, spesifikasi grafik Vega-Lite. |
+| **Autentikasi Dashboard (Role-Free)** | 🟢 Selesai | Login basis data via `feature_store.dim_user`, enkripsi bcrypt, token JWT, auto-seed. |
+| **Fase 5: Stabilisasi & Deployment** | 🟢 Siap | 46 tes integrasi & unit lolos, type safety Pyright 100%, konfigurasi Docker Compose siap pakai. |
+
+---
+
+**Dikembangkan untuk Proyek Kerja Praktik (KP) — ISP Intelligence & Decision Support System.**
