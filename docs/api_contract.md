@@ -489,9 +489,69 @@ Endpoint ini melayani siklus pelatihan model machine learning dan inferensi pred
 - **Path Parameter**: `customer_id` (integer)
 - **Response Body (`data`)**: Mengembalikan objek `CustomerRiskProfile` untuk pelanggan terkait.
 
+### 7.6 Spesifikasi Tuning & Preset Hyperparameter: `GET /api/v1/ml/models/churn/tuning-specs`
+- **Keterangan**: Mengambil profil preset hyperparameter (`default`, `fast_prototype`, `deep_tuned`, `high_recall`), parameter grid pencarian, dan ambang batas risiko (*risk thresholds*).
+- **Response Body (`data`)**:
+  ```json
+  {
+    "default_hyperparameters": { "n_estimators": 100, "max_depth": 4, "learning_rate": 0.05 },
+    "presets": { "default": {}, "fast_prototype": {}, "deep_tuned": {}, "high_recall": {} },
+    "tuning_search_space": { "max_depth": [3, 4, 5, 6], "learning_rate": [0.01, 0.05, 0.1] },
+    "risk_thresholds": { "classification_threshold": 0.5, "high_risk": 0.7, "medium_risk": 0.4 }
+  }
+  ```
+
+### 7.7 Riwayat Versi Model Terlatih: `GET /api/v1/ml/models/churn/history`
+- **Keterangan**: Mengembalikan daftar seluruh versi model machine learning yang tersimpan di registry lokal beserta status aktifnya.
+- **Response Body (`data`)**: Array objek ringkasan model (`model_name`, `version`, `trained_at`, `is_active`).
+
 ---
 
-## 8. Mekanisme Sinkronisasi Otomatis (*Contract Drift Prevention*)
+## 8. Ingestion Pipeline & Quality Audit Endpoints (Zone 3)
+
+Endpoint ini digunakan untuk memonitor kesehatan dan status batch ingestion data dari database ERP ke Feature Store PostgreSQL.
+
+### 8.1 Mode Sumber Data ERP: `GET /api/v1/ingestion/source-mode`
+- **Keterangan**: Mengetahui apakah backend terhubung ke Live Database ERP atau menggunakan Fallback Mock Generator.
+- **Response Body (`data`)**:
+  ```json
+  {
+    "source_type": "MOCK_GENERATOR",
+    "is_mock_data": true,
+    "environment": "development",
+    "scheduler_enabled": true,
+    "warning": "ATTENTION: Current ERP data source is MOCK SYNTHETIC GENERATOR."
+  }
+  ```
+
+### 8.2 Status Penjadwal Ingestion: `GET /api/v1/ingestion/schedules`
+- **Keterangan**: Melihat jadwal cron job otomatis sinkronisasi data (`subscription_sync`, `billing_sync`).
+- **Response Body (`data`)**: Array objek job scheduler (`job_id`, `name`, `trigger`, `next_run_time`).
+
+### 8.3 Riwayat Eksekusi Batch ETL: `GET /api/v1/ingestion/history`
+- **Query Parameter**: `limit` (default: 20, max: 100).
+- **Keterangan**: Mengambil log eksekusi batch ingestion dengan penanda data live vs mock, durasi, dan jumlah baris data yang diproses.
+- **Response Body (`data`)**: Array objek `BatchLogItem`.
+
+### 8.4 Laporan Kualitas Data: `GET /api/v1/ingestion/quality-reports`
+- **Query Parameters**: `status` (`PASS`, `WARN`, `FAIL`), `table_name`, `limit`.
+- **Keterangan**: Mengembalikan catatan pemeriksaan data quality (null value checks, non-negative bounds, referential checks).
+- **Response Body (`data`)**: Array objek `DataQualityLogItem`.
+
+### 8.5 Trigger Manual Ingestion Batch: `POST /api/v1/ingestion/trigger/{job_name}`
+- **Path Parameter**: `job_name` (`subscription_sync` atau `billing_sync`).
+- **Request Body**:
+  ```json
+  {
+    "limit": 100,
+    "force_full_refresh": false
+  }
+  ```
+- **Response Body (`data`)**: Mengembalikan status eksekusi batch, jumlah record yang disinkronkan, dan status data source.
+
+---
+
+## 9. Mekanisme Sinkronisasi Otomatis (*Contract Drift Prevention*)
 
 Untuk mencegah perbedaan antara dokumen kontrak ini dan kode aplikasi yang aktif:
 1. **Automated OpenAPI Dump**: Backend menyertakan script `backend/scripts/export_openapi.py` yang dapat dieksekusi via terminal:
