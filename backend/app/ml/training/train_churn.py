@@ -96,9 +96,9 @@ async def train_customer_churn_model(
     except Exception:
         pr_auc = float(y_val.mean()) if len(y_val) > 0 else 0.0
 
-    f1 = float(f1_score(y_val, y_pred, zero_division=0))
-    prec = float(precision_score(y_val, y_pred, zero_division=0))
-    rec = float(recall_score(y_val, y_pred, zero_division=0))
+    f1 = float(f1_score(y_val, y_pred, zero_division=0))  # type: ignore
+    prec = float(precision_score(y_val, y_pred, zero_division=0))  # type: ignore
+    rec = float(recall_score(y_val, y_pred, zero_division=0))  # type: ignore
     brier = float(brier_score_loss(y_val, y_prob))
     conf_mat = confusion_matrix(y_val, y_pred).tolist()
 

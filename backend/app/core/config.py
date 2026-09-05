@@ -136,4 +136,4 @@ class Settings(BaseSettings):
         return self.ERP_MOCK_DATA or (self.ERP_DATABASE_URL is None and not self.ERP_DB_HOST)
 
 
-settings = Settings()
+settings = Settings()  # type: ignore

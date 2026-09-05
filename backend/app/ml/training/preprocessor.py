@@ -52,7 +52,7 @@ def build_feature_preprocessor() -> ColumnTransformer:
             (
                 "ordinal",
                 OrdinalEncoder(
-                    categories=[["IMPROVING", "STABLE", "WORSENING"]],
+                    categories=[["IMPROVING", "STABLE", "WORSENING"]],  # type: ignore
                     handle_unknown="use_encoded_value",
                     unknown_value=-1,
                 ),

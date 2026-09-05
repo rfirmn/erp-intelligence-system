@@ -39,6 +39,22 @@ class ModelMetadata(BaseModel):
     last_trained_at: Optional[str] = Field(default=None, description="Waktu pelatihan terakhir model")
 
 
+class AuditColumn(BaseModel):
+    key: str = Field(..., description="Field identifier unik kolom")
+    label: str = Field(..., description="Header label tabel untuk tampilan UI")
+    type: str = Field(
+        default="text", description="Tipe formatting rendering nilai kolom (text, number, currency, percentage, badge, date)"
+    )
+
+
+class AuditTable(BaseModel):
+    title: str = Field(..., description="Judul tabel audit")
+    description: str = Field(..., description="Keterangan cakupan data audit transaksi / entitas")
+    columns: List[AuditColumn] = Field(default=[], description="Definisi daftar kolom tabel")
+    rows: List[Dict[str, Any]] = Field(default=[], description="Daftar record baris data mentah/agregat untuk audit total")
+    total_records: int = Field(..., description="Jumlah total baris data yang diaudit")
+
+
 class InsightPackage(BaseModel):
     module: str = Field(..., description="Nama modul bisnis (overview, commercial, finance, dll.)")
     as_of_date: str = Field(..., description="Tanggal data dasar snapshot (YYYY-MM-DD)")
@@ -46,5 +62,8 @@ class InsightPackage(BaseModel):
     key_metrics: List[KeyMetric] = Field(default=[], description="Daftar kartu KPI utama")
     narrative_insights: List[NarrativeInsight] = Field(default=[], description="Daftar wawasan temuan mendalam")
     visualizations: List[Visualization] = Field(default=[], description="Daftar spesifikasi grafik visualisasi")
+    audit_table: Optional[AuditTable] = Field(
+        default=None, description="Tabel data audit granular pendukung metrik kuantitatif"
+    )
     model_metadata: List[ModelMetadata] = Field(default=[], description="Metadata model prediktif penunjang")
     generated_at: str = Field(..., description="Timestamp kompilasi paket wawasan")

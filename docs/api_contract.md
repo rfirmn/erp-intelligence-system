@@ -217,6 +217,12 @@ Insight package adalah kontrak inti yang digunakan oleh frontend dashboard untuk
   - `chart_library`: `"vega-lite" | "plotly"`.
   - `spec`: Objek JSON spesifikasi Vega-Lite v5 (berisi `$schema`, `mark`, `encoding`, `scale`, dll.).
   - `data`: Array objek data JSON yang di-binding langsung ke dalam spec Vega-Lite.
+- **`audit_table`**: `AuditTable (opsional)` — Dataset tabular terstruktur untuk audit transparansi data mentah dan verifikasi total (BI Grid):
+  - `title`: Judul tabel audit (e.g. `"Audit Portofolio Risiko Pelanggan (XGBoost Churn Profiling)"`).
+  - `description`: Keterangan cakupan data audit transaksi / entitas.
+  - `columns`: Array objek definisi kolom (`key`, `label`, `type`: `"text" | "number" | "currency" | "percentage" | "badge" | "date"`).
+  - `rows`: Array objek record data baris untuk verifikasi angka total.
+  - `total_records`: Total baris data yang diaudit.
 - **`model_metadata`**: `Array<ModelMetadata>` — Metadata model machine learning penunjang:
   - `model_name`: Nama model (e.g. `"xgboost_churn_v1"`).
   - `version`: Versi model (e.g. `"1.0.0"`).
@@ -318,6 +324,24 @@ Insight package adalah kontrak inti yang digunakan oleh frontend dashboard untuk
           ]
         }
       ],
+      "audit_table": {
+        "title": "Audit Portofolio Risiko Pelanggan (XGBoost Churn Profiling)",
+        "description": "Daftar akun pelanggan, estimasi probabilitas churn, dan pendorong risiko utama",
+        "columns": [
+          { "key": "customer_id", "label": "ID Akun", "type": "text" },
+          { "key": "customer_name", "label": "Nama Pelanggan", "type": "text" },
+          { "key": "city", "label": "Kota", "type": "text" },
+          { "key": "churn_probability", "label": "Probabilitas Churn", "type": "percentage" },
+          { "key": "risk_level", "label": "Tingkat Risiko", "type": "badge" },
+          { "key": "primary_risk_driver", "label": "Faktor Pendorong Risiko", "type": "text" }
+        ],
+        "rows": [
+          { "customer_id": "CUST-1013", "customer_name": "Customer #1013", "city": "Surabaya", "churn_probability": "84.2%", "risk_level": "HIGH", "primary_risk_driver": "Keterlambatan bayar >=2x (3 bln)" },
+          { "customer_id": "CUST-1045", "customer_name": "Customer #1045", "city": "Bandung", "churn_probability": "76.5%", "risk_level": "HIGH", "primary_risk_driver": "Status pembayaran WORSENING" },
+          { "customer_id": "CUST-1088", "customer_name": "Customer #1088", "city": "Jakarta", "churn_probability": "71.0%", "risk_level": "HIGH", "primary_risk_driver": "Downgrade paket 6 bulan terakhir" }
+        ],
+        "total_records": 3
+      },
       "model_metadata": [
         {
           "model_name": "xgboost_churn_v1",
