@@ -1,0 +1,26 @@
+services:
+  erp_mock_db:
+    image: postgres:16-alpine
+    container_name: erp_mock_source_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${ERP_DB_USER:-erp_user}
+      POSTGRES_PASSWORD: ${ERP_DB_PASSWORD:-erp_secret_123}
+      POSTGRES_DB: ${ERP_DB_NAME:-isp_erp_db}
+    ports:
+      - "${ERP_DB_PORT:-5433}:5432"
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${ERP_DB_USER:-erp_user} -d $${ERP_DB_NAME:-isp_erp_db}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - erp_shared_net
+
+networks:
+  erp_shared_net:
+    name: erp_shared_net
+    driver: bridge

@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: erp_postgres_fs
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fs_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fs_secret_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-erp_intelligence_fs}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_fs_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-fs_user} -d $${POSTGRES_DB:-erp_intelligence_fs}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - isp_internal_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: erp_backend_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Inside Docker Compose network, DB host is the postgres service name
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER:-fs_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fs_secret_change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-erp_intelligence_fs}
+      APP_HOST: 0.0.0.0
+      APP_PORT: ${APP_PORT:-8000}
+      # External Mock ERP database connection URL (points to erp_mock_source_db on erp_shared_net or host)
+      ERP_DATABASE_URL: ${ERP_DATABASE_URL:-postgresql+asyncpg://erp_user:erp_secret_123@erp_mock_source_db:5432/isp_erp_db}
+      ERP_MOCK_DATA: ${ERP_MOCK_DATA:-false}
+    ports:
+      - "${APP_PORT:-8000}:${APP_PORT:-8000}"
+    networks:
+      - isp_internal_net
+      - erp_shared_net
+
+volumes:
+  postgres_fs_data:
+    name: erp_postgres_fs_data
+
+networks:
+  isp_internal_net:
+    name: erp_isp_internal_net
+    driver: bridge
+  erp_shared_net:
+    name: erp_shared_net
+    external: true

@@ -1,0 +1,38 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Virtual environments
+.venv/
+.venv
+venv/
+env/
+backend/.venv/
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Machine Learning Models & Artifacts
+backend/app/ml/artifacts/*
+!backend/app/ml/artifacts/.gitkeep
+*.joblib
+*.pkl
+*.onnx
+*.pt
+*.bin
+*.model

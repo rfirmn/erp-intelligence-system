@@ -1,0 +1,2751 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ERP Intelligence Dashboard API",
+    "description": "Backend API untuk ERP Intelligence Dashboard ISP. Menyajikan wawasan analitis, model prediksi, dan data terstruktur Feature Store.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health & System Readiness Check",
+        "description": "Endpoint publik untuk memantau liveness dan readiness backend serta koneksi Feature Store.",
+        "operationId": "health_check_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_HealthResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ingestion/trigger/{job_name}": {
+      "post": {
+        "tags": [
+          "Ingestion & Pipeline"
+        ],
+        "summary": "Trigger Ingestion Batch Pipeline Manually",
+        "description": "Memicu eksekusi sinkronisasi pipeline batch data ERP secara manual. Job yang tersedia: 'subscription_sync' dan 'billing_sync'. PERHATIAN: Jika sistem berjalan dalam fallback mode, data akan ditandai dengan 'is_mock_data: true'.",
+        "operationId": "trigger_job_api_v1_ingestion_trigger__job_name__post",
+        "parameters": [
+          {
+            "name": "job_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/JobTriggerRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_JobTriggerResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ingestion/history": {
+      "get": {
+        "tags": [
+          "Ingestion & Pipeline"
+        ],
+        "summary": "Get ETL Batch Execution Logs",
+        "description": "Mengembalikan riwayat batch eksekusi ingestion pipeline dengan indikator mock/live yang jelas.",
+        "operationId": "get_history_api_v1_ingestion_history_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_List_BatchLogItem__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ingestion/quality-reports": {
+      "get": {
+        "tags": [
+          "Ingestion & Pipeline"
+        ],
+        "summary": "Get Data Quality Audit Logs",
+        "description": "Mengembalikan laporan audit pemeriksaan kualitas data (null checks, non-negative checks).",
+        "operationId": "get_quality_reports_api_v1_ingestion_quality_reports_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "table_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Table Name"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_List_DataQualityLogItem__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ingestion/schedules": {
+      "get": {
+        "tags": [
+          "Ingestion & Pipeline"
+        ],
+        "summary": "List Ingestion Scheduler Jobs",
+        "description": "Melihat status cron schedule otomatis ingestion di background server.",
+        "operationId": "get_scheduler_status_api_v1_ingestion_schedules_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_List_SchedulerJobItem__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ingestion/source-mode": {
+      "get": {
+        "tags": [
+          "Ingestion & Pipeline"
+        ],
+        "summary": "Check ERP Data Source Mode",
+        "description": "Mengetahui apakah backend terhubung ke Live DB ERP atau menggunakan Fallback Mock Generator.",
+        "operationId": "get_source_mode_api_v1_ingestion_source_mode_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Autentikasi"
+        ],
+        "summary": "Login Pengguna",
+        "description": "Menghasilkan access token JWT Bearer untuk mengakses endpoint terlindungi.",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_TokenResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Autentikasi"
+        ],
+        "summary": "Profil Pengguna Aktif",
+        "description": "Mengembalikan profil dan permission pengguna dari token JWT aktif.",
+        "operationId": "get_profile_api_v1_auth_me_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_UserResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ml/models/churn/train": {
+      "post": {
+        "tags": [
+          "Machine Learning & Predictive Intelligence"
+        ],
+        "summary": "Train or Retrain Customer Churn Model (XGBoost)",
+        "description": "Memicu siklus pelatihan model Customer Churn berbasis XGBoost. Mengambil data dari feature_store.feature_customer_churn, menerapkan anti-leakage temporal split, menghitung metrik evaluasi (ROC-AUC, F1, PR-AUC), menyimpan artifact terversi ke local registry, dan memperbarui pointer active_model.json.",
+        "operationId": "train_churn_model_endpoint_api_v1_ml_models_churn_train_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ModelTrainRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_ModelTrainResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ml/models/churn/metadata": {
+      "get": {
+        "tags": [
+          "Machine Learning & Predictive Intelligence"
+        ],
+        "summary": "Get Currently Active Churn Model Metadata",
+        "description": "Mengambil informasi versi model yang sedang aktif, tanggal pelatihan, daftar fitur, dan metrik akurasi.",
+        "operationId": "get_churn_metadata_endpoint_api_v1_ml_models_churn_metadata_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_ModelMetadataResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ml/models/churn/history": {
+      "get": {
+        "tags": [
+          "Machine Learning & Predictive Intelligence"
+        ],
+        "summary": "List All Available Churn Model Releases",
+        "description": "Melihat riwayat seluruh versi model yang pernah dilatih di registry lokal.",
+        "operationId": "list_churn_models_endpoint_api_v1_ml_models_churn_history_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_List_Dict_str__Any___"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ml/predictions/churn/batch": {
+      "post": {
+        "tags": [
+          "Machine Learning & Predictive Intelligence"
+        ],
+        "summary": "Execute Batch Churn Prediction for a Snapshot",
+        "description": "Menjalankan inferensi batch untuk semua pelanggan pada snapshot tertentu. Menghasilkan probabilitas, risk level (LOW/MED/HIGH), risk rank, dan top 3 driver risiko. Hasil disimpan secara idempotent (ON CONFLICT DO UPDATE) di feature_store.prediction_customer_churn.",
+        "operationId": "predict_churn_batch_endpoint_api_v1_ml_predictions_churn_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BatchPredictionRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_BatchPredictionResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ml/predictions/churn/high-risk": {
+      "get": {
+        "tags": [
+          "Machine Learning & Predictive Intelligence"
+        ],
+        "summary": "Get Top High-Risk Customers for Retention Focus",
+        "description": "Mengembalikan daftar pelanggan berisiko tinggi terurut berdasarkan probabilitas churn tertinggi. Menyertakan nama pelanggan, kota, status, serta Top 3 faktor pemicu risiko (SHAP drivers).",
+        "operationId": "get_high_risk_customers_endpoint_api_v1_ml_predictions_churn_high_risk_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Maksimum jumlah pelanggan yang ditampilkan",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Maksimum jumlah pelanggan yang ditampilkan"
+          },
+          {
+            "name": "min_probability",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "description": "Ambang batas probabilitas minimal",
+              "default": 0.7,
+              "title": "Min Probability"
+            },
+            "description": "Ambang batas probabilitas minimal"
+          },
+          {
+            "name": "snapshot_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tanggal snapshot (opsional, default: terbaru)",
+              "title": "Snapshot Date"
+            },
+            "description": "Tanggal snapshot (opsional, default: terbaru)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_List_CustomerRiskProfile__"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/ml/predictions/churn/customer/{customer_id}": {
+      "get": {
+        "tags": [
+          "Machine Learning & Predictive Intelligence"
+        ],
+        "summary": "Get Individual Customer Churn Risk Profile",
+        "description": "Mengambil profil risiko churn dan detail driver pemicu untuk satu pelanggan tertentu.",
+        "operationId": "get_customer_prediction_endpoint_api_v1_ml_predictions_churn_customer__customer_id__get",
+        "parameters": [
+          {
+            "name": "customer_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Customer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_CustomerRiskProfile_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/overview": {
+      "get": {
+        "tags": [
+          "Insights & Executive Dashboard"
+        ],
+        "summary": "Get Executive Overview Dashboard Insights",
+        "description": "Mengambil wawasan ringkasan eksekutif tingkat tinggi lintas modul bisnis ISP.",
+        "operationId": "get_dashboard_overview_api_v1_dashboard_overview_get",
+        "parameters": [
+          {
+            "name": "as_of_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tanggal snapshot (YYYY-MM-DD)",
+              "title": "As Of Date"
+            },
+            "description": "Tanggal snapshot (YYYY-MM-DD)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_InsightPackage_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insights/{module}": {
+      "get": {
+        "tags": [
+          "Insights & Executive Dashboard"
+        ],
+        "summary": "Get Domain Module Insights Package",
+        "description": "Mengambil paket wawasan terstruktur untuk modul bisnis tertentu. Mencakup ringkasan eksekutif kritis LLM, kartu KPI, narasi temuan berbasis alasan agen, dan spesifikasi grafik Vega-Lite v5 yang terikat pada data aktual.",
+        "operationId": "get_module_insight_api_v1_insights__module__get",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "as_of_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tanggal snapshot (YYYY-MM-DD)",
+              "title": "As Of Date"
+            },
+            "description": "Tanggal snapshot (YYYY-MM-DD)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_InsightPackage_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/insights/mock/{module}": {
+      "get": {
+        "tags": [
+          "Insights (Mock Prototype)"
+        ],
+        "summary": "Ambil Wawasan Bisnis per Modul (Mock Prototype)",
+        "description": "Menyajikan paket wawasan eksekutif, KPI cards, penalaran agen, dan grafik Vega-Lite sesuai kontrak API.",
+        "operationId": "get_mock_insight_api_v1_insights_mock__module__get",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Nama modul bisnis (overview, commercial, finance, procurement, inventory, asset, service)",
+              "title": "Module"
+            },
+            "description": "Nama modul bisnis (overview, commercial, finance, procurement, inventory, asset, service)"
+          },
+          {
+            "name": "as_of_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter tanggal snapshot acuan (format YYYY-MM-DD)",
+              "title": "As Of Date"
+            },
+            "description": "Filter tanggal snapshot acuan (format YYYY-MM-DD)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_InsightPackage_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BatchLogItem": {
+        "properties": {
+          "batch_id": {
+            "type": "string",
+            "title": "Batch Id"
+          },
+          "source_table": {
+            "type": "string",
+            "title": "Source Table"
+          },
+          "watermark_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Watermark Start"
+          },
+          "watermark_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Watermark End"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "is_mock_data": {
+            "type": "boolean",
+            "title": "Is Mock Data",
+            "description": "True jika log batch dieksekusi dengan mock data generator"
+          },
+          "row_count": {
+            "type": "integer",
+            "title": "Row Count"
+          },
+          "started_at": {
+            "type": "string",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_id",
+          "source_table",
+          "status",
+          "is_mock_data",
+          "row_count",
+          "started_at"
+        ],
+        "title": "BatchLogItem"
+      },
+      "BatchPredictionRequest": {
+        "properties": {
+          "snapshot_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Date",
+            "description": "Tanggal snapshot fitur (YYYY-MM-DD). Jika null, otomatis gunakan snapshot terbaru."
+          },
+          "force_refresh": {
+            "type": "boolean",
+            "title": "Force Refresh",
+            "description": "Jika true, lakukan overwrite idempotent pada prediksi yang sudah ada",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "BatchPredictionRequest"
+      },
+      "BatchPredictionResponse": {
+        "properties": {
+          "snapshot_date": {
+            "type": "string",
+            "title": "Snapshot Date"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "total_evaluated": {
+            "type": "integer",
+            "title": "Total Evaluated"
+          },
+          "high_risk_count": {
+            "type": "integer",
+            "title": "High Risk Count"
+          },
+          "medium_risk_count": {
+            "type": "integer",
+            "title": "Medium Risk Count"
+          },
+          "low_risk_count": {
+            "type": "integer",
+            "title": "Low Risk Count"
+          },
+          "average_churn_probability": {
+            "type": "number",
+            "title": "Average Churn Probability"
+          },
+          "rows_saved": {
+            "type": "integer",
+            "title": "Rows Saved"
+          }
+        },
+        "type": "object",
+        "required": [
+          "snapshot_date",
+          "model_version",
+          "total_evaluated",
+          "high_risk_count",
+          "medium_risk_count",
+          "low_risk_count",
+          "average_churn_probability",
+          "rows_saved"
+        ],
+        "title": "BatchPredictionResponse"
+      },
+      "CustomerRiskFactor": {
+        "properties": {
+          "feature": {
+            "type": "string",
+            "title": "Feature"
+          },
+          "impact": {
+            "type": "string",
+            "title": "Impact"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "EXPOSURE_WEIGHT"
+            ],
+            "title": "Severity"
+          },
+          "importance_weight": {
+            "type": "number",
+            "title": "Importance Weight"
+          },
+          "value": {
+            "title": "Value"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "feature",
+          "impact",
+          "severity",
+          "importance_weight",
+          "value",
+          "description"
+        ],
+        "title": "CustomerRiskFactor"
+      },
+      "CustomerRiskProfile": {
+        "properties": {
+          "customer_id": {
+            "type": "integer",
+            "title": "Customer Id"
+          },
+          "customer_name": {
+            "type": "string",
+            "title": "Customer Name"
+          },
+          "city": {
+            "type": "string",
+            "title": "City"
+          },
+          "customer_status": {
+            "type": "string",
+            "title": "Customer Status"
+          },
+          "snapshot_date": {
+            "type": "string",
+            "title": "Snapshot Date"
+          },
+          "churn_probability": {
+            "type": "number",
+            "title": "Churn Probability"
+          },
+          "risk_level": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH"
+            ],
+            "title": "Risk Level"
+          },
+          "risk_tier_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Tier Rank"
+          },
+          "top_risk_factors": {
+            "items": {
+              "$ref": "#/components/schemas/CustomerRiskFactor"
+            },
+            "type": "array",
+            "title": "Top Risk Factors",
+            "default": []
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "customer_id",
+          "customer_name",
+          "city",
+          "customer_status",
+          "snapshot_date",
+          "churn_probability",
+          "risk_level",
+          "model_version"
+        ],
+        "title": "CustomerRiskProfile"
+      },
+      "DataQualityLogItem": {
+        "properties": {
+          "log_id": {
+            "type": "integer",
+            "title": "Log Id"
+          },
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Id"
+          },
+          "check_name": {
+            "type": "string",
+            "title": "Check Name"
+          },
+          "table_name": {
+            "type": "string",
+            "title": "Table Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          },
+          "checked_at": {
+            "type": "string",
+            "title": "Checked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "log_id",
+          "check_name",
+          "table_name",
+          "status",
+          "checked_at"
+        ],
+        "title": "DataQualityLogItem"
+      },
+      "DatabaseComponentHealth": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Status koneksi database (connected / disconnected)"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms",
+            "description": "Latensi query ping ke database dalam milidetik"
+          },
+          "pool_size": {
+            "type": "integer",
+            "title": "Pool Size",
+            "description": "Ukuran pool koneksi database saat ini"
+          },
+          "active_connections": {
+            "type": "integer",
+            "title": "Active Connections",
+            "description": "Jumlah koneksi yang sedang aktif digunakan",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "pool_size"
+        ],
+        "title": "DatabaseComponentHealth"
+      },
+      "ErrorDetail": {
+        "properties": {
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field",
+            "description": "Nama field yang mengalami kegagalan validasi"
+          },
+          "issue": {
+            "type": "string",
+            "title": "Issue",
+            "description": "Deskripsi permasalahan validasi"
+          }
+        },
+        "type": "object",
+        "required": [
+          "issue"
+        ],
+        "title": "ErrorDetail"
+      },
+      "FeatureStoreComponentHealth": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Status skema Feature Store (ready / uninitialized)"
+          },
+          "schemas": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Schemas",
+            "description": "Daftar skema terdaftar",
+            "default": [
+              "staging",
+              "feature_store"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "FeatureStoreComponentHealth"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthComponents": {
+        "properties": {
+          "database": {
+            "$ref": "#/components/schemas/DatabaseComponentHealth"
+          },
+          "feature_store": {
+            "$ref": "#/components/schemas/FeatureStoreComponentHealth"
+          }
+        },
+        "type": "object",
+        "required": [
+          "database",
+          "feature_store"
+        ],
+        "title": "HealthComponents"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Status liveness keseluruhan aplikasi (healthy / degraded / unhealthy)"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "description": "Waktu pengecekan kesehatan format ISO-8601"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "Versi rilis aplikasi backend",
+            "default": "0.1.0"
+          },
+          "environment": {
+            "type": "string",
+            "title": "Environment",
+            "description": "Nama environment aktif (development / staging / production)"
+          },
+          "components": {
+            "$ref": "#/components/schemas/HealthComponents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "environment",
+          "components"
+        ],
+        "title": "HealthResponse"
+      },
+      "InsightPackage": {
+        "properties": {
+          "module": {
+            "type": "string",
+            "title": "Module",
+            "description": "Nama modul bisnis (overview, commercial, finance, dll.)"
+          },
+          "as_of_date": {
+            "type": "string",
+            "title": "As Of Date",
+            "description": "Tanggal data dasar snapshot (YYYY-MM-DD)"
+          },
+          "executive_summary": {
+            "type": "string",
+            "title": "Executive Summary",
+            "description": "Narasi ringkasan eksekutif 2-3 kalimat"
+          },
+          "key_metrics": {
+            "items": {
+              "$ref": "#/components/schemas/KeyMetric"
+            },
+            "type": "array",
+            "title": "Key Metrics",
+            "description": "Daftar kartu KPI utama",
+            "default": []
+          },
+          "narrative_insights": {
+            "items": {
+              "$ref": "#/components/schemas/NarrativeInsight"
+            },
+            "type": "array",
+            "title": "Narrative Insights",
+            "description": "Daftar wawasan temuan mendalam",
+            "default": []
+          },
+          "visualizations": {
+            "items": {
+              "$ref": "#/components/schemas/Visualization"
+            },
+            "type": "array",
+            "title": "Visualizations",
+            "description": "Daftar spesifikasi grafik visualisasi",
+            "default": []
+          },
+          "model_metadata": {
+            "items": {
+              "$ref": "#/components/schemas/ModelMetadata"
+            },
+            "type": "array",
+            "title": "Model Metadata",
+            "description": "Metadata model prediktif penunjang",
+            "default": []
+          },
+          "generated_at": {
+            "type": "string",
+            "title": "Generated At",
+            "description": "Timestamp kompilasi paket wawasan"
+          }
+        },
+        "type": "object",
+        "required": [
+          "module",
+          "as_of_date",
+          "executive_summary",
+          "generated_at"
+        ],
+        "title": "InsightPackage"
+      },
+      "JobTriggerRequest": {
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "maximum": 50000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "Maksimal jumlah baris data yang diekstrak per batch",
+            "default": 5000
+          },
+          "force_full_refresh": {
+            "type": "boolean",
+            "title": "Force Full Refresh",
+            "description": "Jika true, abaikan watermark dan lakukan refresh menyeluruh",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "JobTriggerRequest"
+      },
+      "JobTriggerResponse": {
+        "properties": {
+          "batch_id": {
+            "type": "string",
+            "title": "Batch Id",
+            "description": "UUID identifier batch yang dieksekusi"
+          },
+          "job_name": {
+            "type": "string",
+            "title": "Job Name",
+            "description": "Nama pipeline job yang dijalankan"
+          },
+          "is_mock_data": {
+            "type": "boolean",
+            "title": "Is Mock Data",
+            "description": "TANDA JELAS: True jika data diproduksi dari Mock ERP Generator, False jika Live ERP"
+          },
+          "source_type": {
+            "type": "string",
+            "title": "Source Type",
+            "description": "'MOCK_GENERATOR' atau 'LIVE_ERP'"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Status akhir batch (SUCCESS / FAILED)"
+          },
+          "rows_extracted": {
+            "type": "integer",
+            "title": "Rows Extracted",
+            "description": "Total baris data yang diekstrak"
+          },
+          "rows_staged": {
+            "type": "integer",
+            "title": "Rows Staged",
+            "description": "Total baris data yang dimuat ke staging layer"
+          },
+          "rows_dimension": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rows Dimension",
+            "description": "Total perubahan dimensi (SCD2)"
+          },
+          "rows_fact": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rows Fact",
+            "description": "Total fact snapshots/monthly yang tersimpan"
+          },
+          "rows_features": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rows Features",
+            "description": "Total baris fitur ML yang diperbarui"
+          },
+          "invoices_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invoices Count"
+          },
+          "payments_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payments Count"
+          },
+          "watermark_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Watermark Start"
+          },
+          "watermark_end": {
+            "type": "string",
+            "title": "Watermark End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_id",
+          "job_name",
+          "is_mock_data",
+          "source_type",
+          "status",
+          "rows_extracted",
+          "rows_staged",
+          "watermark_end"
+        ],
+        "title": "JobTriggerResponse"
+      },
+      "KeyMetric": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "Identifier unik metrik (e.g. mrr, churn_risk_count)"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "Label human-readable metrik untuk ditampilkan di card"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value",
+            "description": "Nilai kuantitatif numerik mentah"
+          },
+          "formatted_value": {
+            "type": "string",
+            "title": "Formatted Value",
+            "description": "String nilai berformat untuk kemudahan rendering UI"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit",
+            "description": "Satuan nilai metrik (e.g. IDR, customers, %)"
+          },
+          "change_percentage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Percentage",
+            "description": "Persentase perubahan dari periode lalu"
+          },
+          "trend": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "up",
+                  "down",
+                  "neutral"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trend",
+            "description": "Arah tren pergerakan metrik"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "good",
+                  "warning",
+                  "critical"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "Indikator warna status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "value",
+          "formatted_value",
+          "unit"
+        ],
+        "title": "KeyMetric"
+      },
+      "LoginRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 3,
+            "title": "Username",
+            "description": "Username atau email akun pengguna"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 4,
+            "title": "Password",
+            "description": "Kata sandi akun"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest"
+      },
+      "ModelMetadata": {
+        "properties": {
+          "model_name": {
+            "type": "string",
+            "title": "Model Name",
+            "description": "Nama model machine learning yang digunakan"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "Versi model"
+          },
+          "prediction_window": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prediction Window",
+            "description": "Jendela prediksi (e.g. 30_days, 1_quarter)"
+          },
+          "confidence_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence Score",
+            "description": "Skor akurasi / keyakinan / ROC-AUC"
+          },
+          "last_trained_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Trained At",
+            "description": "Waktu pelatihan terakhir model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_name",
+          "version"
+        ],
+        "title": "ModelMetadata"
+      },
+      "ModelMetadataResponse": {
+        "properties": {
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "algorithm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Algorithm",
+            "default": "XGBClassifier"
+          },
+          "trained_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trained At"
+          },
+          "features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Features",
+            "default": []
+          },
+          "metrics": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metrics"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_name",
+          "model_version"
+        ],
+        "title": "ModelMetadataResponse"
+      },
+      "ModelTrainRequest": {
+        "properties": {
+          "model_version": {
+            "type": "string",
+            "title": "Model Version",
+            "description": "Versi model semantic yang akan dilatih",
+            "default": "1.0.0"
+          },
+          "test_size_ratio": {
+            "type": "number",
+            "maximum": 0.5,
+            "minimum": 0.05,
+            "title": "Test Size Ratio",
+            "description": "Proporsi data temporal untuk validasi OOT",
+            "default": 0.2
+          },
+          "hyperparameters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hyperparameters",
+            "description": "Custom hyperparameter dictionary untuk XGBoost"
+          },
+          "set_as_active": {
+            "type": "boolean",
+            "title": "Set As Active",
+            "description": "Jika true, langsung jadikan model ini sebagai active inference model",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "ModelTrainRequest"
+      },
+      "ModelTrainResponse": {
+        "properties": {
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "trained_at": {
+            "type": "string",
+            "title": "Trained At"
+          },
+          "total_samples": {
+            "type": "integer",
+            "title": "Total Samples"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metrics"
+          },
+          "top_global_features": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Top Global Features"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_name",
+          "model_version",
+          "status",
+          "trained_at",
+          "total_samples",
+          "metrics",
+          "top_global_features",
+          "is_active"
+        ],
+        "title": "ModelTrainResponse"
+      },
+      "NarrativeInsight": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "ID unik wawasan (e.g. ins-comm-001)"
+          },
+          "domain": {
+            "type": "string",
+            "title": "Domain",
+            "description": "Domain bisnis asal wawasan"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "info",
+              "warning",
+              "critical"
+            ],
+            "title": "Severity",
+            "description": "Tingkat keparahan temuan",
+            "default": "info"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Judul ringkas temuan wawasan"
+          },
+          "narrative": {
+            "type": "string",
+            "title": "Narrative",
+            "description": "Penjelasan mendalam berbasis alasan agen AI"
+          },
+          "suggested_actions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Suggested Actions",
+            "description": "Daftar tindakan konkret yang direkomendasikan",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "domain",
+          "title",
+          "narrative"
+        ],
+        "title": "NarrativeInsight"
+      },
+      "PaginationMeta": {
+        "properties": {
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "description": "Nomor halaman aktif (1-indexed)"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size",
+            "description": "Jumlah data per halaman"
+          },
+          "total_records": {
+            "type": "integer",
+            "title": "Total Records",
+            "description": "Total keseluruhan data"
+          },
+          "total_pages": {
+            "type": "integer",
+            "title": "Total Pages",
+            "description": "Total halaman yang tersedia"
+          }
+        },
+        "type": "object",
+        "required": [
+          "page",
+          "page_size",
+          "total_records",
+          "total_pages"
+        ],
+        "title": "PaginationMeta"
+      },
+      "ResponseEnvelope_BatchPredictionResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BatchPredictionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[BatchPredictionResponse]"
+      },
+      "ResponseEnvelope_CustomerRiskProfile_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CustomerRiskProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[CustomerRiskProfile]"
+      },
+      "ResponseEnvelope_HealthResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[HealthResponse]"
+      },
+      "ResponseEnvelope_InsightPackage_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InsightPackage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[InsightPackage]"
+      },
+      "ResponseEnvelope_JobTriggerResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobTriggerResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[JobTriggerResponse]"
+      },
+      "ResponseEnvelope_List_BatchLogItem__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/BatchLogItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[List[BatchLogItem]]"
+      },
+      "ResponseEnvelope_List_CustomerRiskProfile__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/CustomerRiskProfile"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[List[CustomerRiskProfile]]"
+      },
+      "ResponseEnvelope_List_DataQualityLogItem__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DataQualityLogItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[List[DataQualityLogItem]]"
+      },
+      "ResponseEnvelope_List_Dict_str__Any___": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[List[Dict[str, Any]]]"
+      },
+      "ResponseEnvelope_List_SchedulerJobItem__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SchedulerJobItem"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[List[SchedulerJobItem]]"
+      },
+      "ResponseEnvelope_ModelMetadataResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelMetadataResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[ModelMetadataResponse]"
+      },
+      "ResponseEnvelope_ModelTrainResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelTrainResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[ModelTrainResponse]"
+      },
+      "ResponseEnvelope_TokenResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TokenResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[TokenResponse]"
+      },
+      "ResponseEnvelope_UserResponse_": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[UserResponse]"
+      },
+      "ResponseError": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "Katalog kode error standar (e.g. VALIDATION_ERROR, NOT_FOUND)"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Pesan deskriptif error yang ramah pengguna"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details",
+            "description": "Rincian error per-field"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ResponseError"
+      },
+      "ResponseMeta": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id",
+            "description": "Pengenal unik transaksi request (UUIDv4) untuk tracing"
+          },
+          "timestamp": {
+            "type": "string",
+            "title": "Timestamp",
+            "description": "Waktu pembuatan respons dalam format ISO-8601 UTC"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "Versi API yang melayani request",
+            "default": "v1"
+          },
+          "pagination": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaginationMeta"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Metadata pagination (jika respons mengembalikan daftar data)"
+          }
+        },
+        "type": "object",
+        "title": "ResponseMeta"
+      },
+      "SchedulerJobItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "next_run_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Run Time"
+          },
+          "trigger": {
+            "type": "string",
+            "title": "Trigger"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "trigger"
+        ],
+        "title": "SchedulerJobItem"
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token",
+            "description": "JWT Bearer token untuk autentikasi API"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "description": "Tipe token",
+            "default": "bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "Masa berlaku token dalam detik"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserResponse",
+            "description": "Informasi profil pengguna terotentikasi"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "expires_in",
+          "user"
+        ],
+        "title": "TokenResponse"
+      },
+      "UserResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "ID unik pengguna"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username",
+            "description": "Username pengguna"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name",
+            "description": "Nama lengkap pengguna"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "description": "Peran pengguna (e.g. admin, analyst, viewer)",
+            "default": "user"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Permissions",
+            "description": "Daftar hak akses pengguna",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "full_name"
+        ],
+        "title": "UserResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "Visualization": {
+        "properties": {
+          "chart_id": {
+            "type": "string",
+            "title": "Chart Id",
+            "description": "Identifier unik grafik"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Judul grafik"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Subjudul atau keterangan data grafik"
+          },
+          "chart_library": {
+            "type": "string",
+            "enum": [
+              "vega-lite",
+              "plotly"
+            ],
+            "title": "Chart Library",
+            "description": "Library rendering grafik",
+            "default": "vega-lite"
+          },
+          "spec": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Spec",
+            "description": "Spesifikasi JSON Vega-Lite v5 atau Plotly"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "Dataset yang di-bind ke grafik"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chart_id",
+          "title",
+          "description",
+          "spec"
+        ],
+        "title": "Visualization"
+      }
+    }
+  }
+}
