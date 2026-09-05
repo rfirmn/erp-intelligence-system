@@ -96,6 +96,24 @@ MOCK_MODULE_INSIGHTS: Dict[str, dict] = {
                 ],
             }
         ],
+        "audit_table": {
+            "title": "Audit Portofolio Risiko Pelanggan (XGBoost Churn Profiling)",
+            "description": "Daftar akun pelanggan, estimasi probabilitas churn, dan pendorong risiko utama",
+            "columns": [
+                {"key": "customer_id", "label": "ID Akun", "type": "text"},
+                {"key": "customer_name", "label": "Nama Pelanggan", "type": "text"},
+                {"key": "city", "label": "Kota", "type": "text"},
+                {"key": "churn_probability", "label": "Probabilitas Churn", "type": "percentage"},
+                {"key": "risk_level", "label": "Tingkat Risiko", "type": "badge"},
+                {"key": "primary_risk_driver", "label": "Faktor Pendorong Risiko", "type": "text"},
+            ],
+            "rows": [
+                {"customer_id": "CUST-1013", "customer_name": "Customer #1013", "city": "Surabaya", "churn_probability": "84.2%", "risk_level": "HIGH", "primary_risk_driver": "Keterlambatan bayar >=2x (3 bln)"},
+                {"customer_id": "CUST-1045", "customer_name": "Customer #1045", "city": "Bandung", "churn_probability": "76.5%", "risk_level": "HIGH", "primary_risk_driver": "Status pembayaran WORSENING"},
+                {"customer_id": "CUST-1088", "customer_name": "Customer #1088", "city": "Jakarta", "churn_probability": "71.0%", "risk_level": "HIGH", "primary_risk_driver": "Downgrade paket 6 bulan terakhir"},
+            ],
+            "total_records": 3,
+        },
         "model_metadata": [
             {
                 "model_name": "xgboost_churn_v1",
@@ -173,6 +191,25 @@ MOCK_MODULE_INSIGHTS: Dict[str, dict] = {
                 ],
             }
         ],
+        "audit_table": {
+            "title": "Audit Faktur Piutang Berjalan & Jatuh Tempo (AR Ledger)",
+            "description": "Rincian faktur pelanggan korporat dan ritel dengan status penagihan aktif",
+            "columns": [
+                {"key": "invoice_id", "label": "No. Faktur", "type": "text"},
+                {"key": "client_name", "label": "Nama Klien / Pelanggan", "type": "text"},
+                {"key": "due_date", "label": "Tgl Jatuh Tempo", "type": "date"},
+                {"key": "amount", "label": "Nominal Tagihan", "type": "currency"},
+                {"key": "days_overdue", "label": "Keterlambatan", "type": "text"},
+                {"key": "bucket", "label": "Bucket Aging", "type": "badge"},
+                {"key": "status", "label": "Status", "type": "badge"},
+            ],
+            "rows": [
+                {"invoice_id": "INV-2026-0881", "client_name": "PT Surya Mandiri Logistik", "due_date": "2026-08-15", "amount": 45000000.0, "days_overdue": "21 Hari", "bucket": "0-30 Hari", "status": "SP1 Terbit"},
+                {"invoice_id": "INV-2026-0842", "client_name": "CV Prima Jaya Abadi", "due_date": "2026-07-28", "amount": 28000000.0, "days_overdue": "39 Hari", "bucket": "31-60 Hari", "status": "Mediasi"},
+                {"invoice_id": "INV-2026-0790", "client_name": "PT Nusantara Digital Hub", "due_date": "2026-06-30", "amount": 30000000.0, "days_overdue": "67 Hari", "bucket": ">60 Hari", "status": "Kritis"},
+            ],
+            "total_records": 3,
+        },
         "model_metadata": [
             {
                 "model_name": "prophet_cashflow_v1",
@@ -250,6 +287,24 @@ MOCK_MODULE_INSIGHTS: Dict[str, dict] = {
                 ],
             }
         ],
+        "audit_table": {
+            "title": "Audit Pemesanan Pembelian (Purchase Orders) & Kinerja Vendor",
+            "description": "Daftar PO berjalan, estimasi kedatangan, dan deviasi pemenuhan waktu vendor",
+            "columns": [
+                {"key": "po_number", "label": "No. PO", "type": "text"},
+                {"key": "vendor_name", "label": "Nama Vendor", "type": "text"},
+                {"key": "item_category", "label": "Item Pengadaan", "type": "text"},
+                {"key": "po_value", "label": "Nilai PO", "type": "currency"},
+                {"key": "promised_delivery", "label": "Target Tiba", "type": "date"},
+                {"key": "delay_days", "label": "Deviasi", "type": "text"},
+                {"key": "otd_status", "label": "Status OTD", "type": "badge"},
+            ],
+            "rows": [
+                {"po_number": "PO-2026-0412", "vendor_name": "PT Optik Nusantara", "item_category": "Drop Cable 1 Core (20 km)", "po_value": 78000000.0, "promised_delivery": "2026-09-02", "delay_days": "0 Hari", "otd_status": "Tepat Waktu"},
+                {"po_number": "PO-2026-0398", "vendor_name": "PT Telko Supply", "item_category": "ONT XPON Dual-Band (500 unit)", "po_value": 145000000.0, "promised_delivery": "2026-08-28", "delay_days": "+7 Hari", "otd_status": "Terlambat"},
+            ],
+            "total_records": 2,
+        },
         "model_metadata": [
             {
                 "model_name": "vendor_lead_time_xgb",
@@ -329,6 +384,24 @@ MOCK_MODULE_INSIGHTS: Dict[str, dict] = {
                 ],
             }
         ],
+        "audit_table": {
+            "title": "Audit Saldo Gudang & Ketahanan Stok Material Jaringan",
+            "description": "Pemantauan posisi stok aktual material, batas safety stock, dan proyeksi hari habis",
+            "columns": [
+                {"key": "sku", "label": "Kode SKU", "type": "text"},
+                {"key": "item_name", "label": "Nama Material", "type": "text"},
+                {"key": "warehouse", "label": "Lokasi Gudang", "type": "text"},
+                {"key": "stock_qty", "label": "Stok Aktual", "type": "number"},
+                {"key": "safety_stock", "label": "Safety Stock", "type": "number"},
+                {"key": "runway_days", "label": "Ketahanan (Hari)", "type": "number"},
+                {"key": "risk_level", "label": "Tingkat Risiko", "type": "badge"},
+            ],
+            "rows": [
+                {"sku": "MAT-CBL-001", "item_name": "Drop Cable 1 Core 1000m", "warehouse": "Gudang Utama Jakarta", "stock_qty": 4200, "safety_stock": 1500, "runway_days": 11, "risk_level": "Kritis"},
+                {"sku": "MAT-ONT-004", "item_name": "ONT XPON Dual-Band AC1200", "warehouse": "Gudang Utama Jakarta", "stock_qty": 65, "safety_stock": 50, "runway_days": 8, "risk_level": "Kritis"},
+            ],
+            "total_records": 2,
+        },
         "model_metadata": [
             {
                 "model_name": "stockout_forecast_v1",
@@ -406,6 +479,23 @@ MOCK_MODULE_INSIGHTS: Dict[str, dict] = {
                 ],
             }
         ],
+        "audit_table": {
+            "title": "Audit Kondisi Aset Jaringan & Status Pemeliharaan",
+            "description": "Daftar perangkat router core, switch distribusi, dan OLT di seluruh Point of Presence (POP)",
+            "columns": [
+                {"key": "asset_id", "label": "Asset Tag", "type": "text"},
+                {"key": "device_name", "label": "Tipe Perangkat", "type": "text"},
+                {"key": "location", "label": "Lokasi / POP", "type": "text"},
+                {"key": "operating_temp", "label": "Suhu (°C)", "type": "text"},
+                {"key": "condition", "label": "Kondisi", "type": "badge"},
+                {"key": "last_serviced", "label": "Servis Terakhir", "type": "date"},
+                {"key": "action_needed", "label": "Rekomendasi Aksi", "type": "text"},
+            ],
+            "rows": [
+                {"asset_id": "AST-OLT-014", "device_name": "Huawei SmartAX MA5800-X7", "location": "POP Rawamangun", "operating_temp": "58°C", "condition": "Perlu Pemeliharaan", "last_serviced": "2026-03-10", "action_needed": "Pembersihan filter & cek pendingin"},
+            ],
+            "total_records": 1,
+        },
         "model_metadata": [
             {
                 "model_name": "predictive_maintenance_rf",
@@ -485,6 +575,23 @@ MOCK_MODULE_INSIGHTS: Dict[str, dict] = {
                 ],
             }
         ],
+        "audit_table": {
+            "title": "Audit Tiket Gangguan NOC & Kepatuhan Service Level Agreement (SLA)",
+            "description": "Rekam jejak insiden gangguan jaringan, waktu penanganan (MTTR), dan status SLA",
+            "columns": [
+                {"key": "ticket_id", "label": "No. Tiket", "type": "text"},
+                {"key": "category", "label": "Kategori Insiden", "type": "text"},
+                {"key": "service_area", "label": "Area Layanan", "type": "text"},
+                {"key": "open_time", "label": "Waktu Lapor", "type": "date"},
+                {"key": "mttr_hours", "label": "Durasi MTTR", "type": "text"},
+                {"key": "sla_target", "label": "Target SLA", "type": "text"},
+                {"key": "sla_status", "label": "Status SLA", "type": "badge"},
+            ],
+            "rows": [
+                {"ticket_id": "TKT-2026-1042", "category": "Loss of Signal (Fiber Cut)", "service_area": "Jakarta Timur (Rawamangun)", "open_time": "2026-09-02 10:15", "mttr_hours": "1.8 Jam", "sla_target": "4.0 Jam", "sla_status": "SLA Met"},
+            ],
+            "total_records": 1,
+        },
         "model_metadata": [
             {
                 "model_name": "sla_breach_survival_v1",
@@ -596,6 +703,27 @@ MOCK_MODULE_INSIGHTS: Dict[str, dict] = {
                 ],
             }
         ],
+        "audit_table": {
+            "title": "Audit Indeks Kinerja & Kesehatan Antar Domain ISP",
+            "description": "Evaluasi pencapaian metrik utama dan status operasional per unit bisnis",
+            "columns": [
+                {"key": "module", "label": "Modul Bisnis", "type": "text"},
+                {"key": "primary_kpi", "label": "Metrik Utama", "type": "text"},
+                {"key": "target", "label": "Target KPI", "type": "text"},
+                {"key": "actual", "label": "Realisasi Aktual", "type": "text"},
+                {"key": "health_score", "label": "Skor Kesehatan", "type": "number"},
+                {"key": "status", "label": "Status", "type": "badge"},
+            ],
+            "rows": [
+                {"module": "Commercial", "primary_kpi": "Monthly Recurring Revenue", "target": "Rp 1,40 M", "actual": "Rp 1,45 M", "health_score": 82, "status": "Bagus"},
+                {"module": "Finance", "primary_kpi": "Net Operating Cash Flow", "target": "Rp 300 Jt", "actual": "Rp 320 Jt", "health_score": 88, "status": "Bagus"},
+                {"module": "Procurement", "primary_kpi": "Vendor On-Time Delivery", "target": "90.0%", "actual": "83.3%", "health_score": 75, "status": "Perhatian"},
+                {"module": "Inventory", "primary_kpi": "Stockout Runway Days", "target": "30 Hari", "actual": "11 Hari", "health_score": 68, "status": "Perhatian"},
+                {"module": "Asset", "primary_kpi": "Rasio Perangkat Prima", "target": "95.0%", "actual": "96.2%", "health_score": 85, "status": "Bagus"},
+                {"module": "Service", "primary_kpi": "Tingkat Kepatuhan SLA", "target": "92.0%", "actual": "94.8%", "health_score": 92, "status": "Bagus"},
+            ],
+            "total_records": 6,
+        },
         "model_metadata": [
             {
                 "model_name": "executive_state_compiler_v1",

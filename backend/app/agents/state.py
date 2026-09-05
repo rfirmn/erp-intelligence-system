@@ -12,4 +12,5 @@ class AgentState(TypedDict, total=False):
     anomalies: List[Dict[str, Any]]
     synthesized_narratives: List[Dict[str, Any]]
     chart_specs: List[Dict[str, Any]]
+    audit_data: Dict[str, Any]
     errors: List[str]

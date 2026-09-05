@@ -1,6 +1,6 @@
 from datetime import date
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 import pandas as pd
 from sqlalchemy import desc, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -117,7 +117,7 @@ class ChurnInferenceService:
         med_thresh = ml_config.risk_thresholds.medium_risk
 
         for idx, row in df.iterrows():
-            prob = float(row["churn_probability"])
+            prob = float(cast(Any, row["churn_probability"]))
             if prob >= high_thresh:
                 risk_level = "HIGH"
                 high_risk_count += 1
@@ -132,10 +132,10 @@ class ChurnInferenceService:
 
             prediction_db_records.append({
                 "snapshot_date": snapshot_date,
-                "customer_id": int(row["customer_id"]),
+                "customer_id": int(cast(Any, row["customer_id"])),
                 "churn_probability": round(prob, 4),
                 "risk_level": risk_level,
-                "risk_tier_rank": int(row["risk_tier_rank"]),
+                "risk_tier_rank": int(cast(Any, row["risk_tier_rank"])),
                 "top_risk_factors": factors,
                 "model_version": model_version,
                 "created_at": utc_now(),
@@ -158,7 +158,7 @@ class ChurnInferenceService:
         await session.execute(upsert_stmt)
 
         # 7. Basic Drift & Quality Logging
-        avg_prob = round(float(df["churn_probability"].mean()), 4)
+        avg_prob = round(float(cast(Any, df["churn_probability"].mean())), 4)
         dq_log = DataQualityLog(
             check_name="batch_churn_prediction_audit",
             table_name="prediction_customer_churn",

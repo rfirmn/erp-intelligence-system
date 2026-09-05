@@ -439,6 +439,28 @@
         }
       }
     },
+    "/api/v1/ml/models/churn/tuning-specs": {
+      "get": {
+        "tags": [
+          "Machine Learning & Predictive Intelligence"
+        ],
+        "summary": "Get Hyperparameter Presets and Tuning Search Space",
+        "description": "Melihat profil preset hyperparameter (default, fast_prototype, deep_tuned, high_recall) dan parameter grid untuk eksperimen model.",
+        "operationId": "get_tuning_specs_endpoint_api_v1_ml_models_churn_tuning_specs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseEnvelope_Dict_str__Any__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/ml/predictions/churn/batch": {
       "post": {
         "tags": [
@@ -502,11 +524,17 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
-              "maximum": 100,
-              "minimum": 1,
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Maksimum jumlah pelanggan yang ditampilkan",
-              "default": 20,
               "title": "Limit"
             },
             "description": "Maksimum jumlah pelanggan yang ditampilkan"
@@ -516,11 +544,17 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "number",
-              "maximum": 1.0,
-              "minimum": 0.0,
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 1.0,
+                  "minimum": 0.0
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Ambang batas probabilitas minimal",
-              "default": 0.7,
               "title": "Min Probability"
             },
             "description": "Ambang batas probabilitas minimal"
@@ -807,6 +841,77 @@
   },
   "components": {
     "schemas": {
+      "AuditColumn": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "Field identifier unik kolom"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "Header label tabel untuk tampilan UI"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "Tipe formatting rendering nilai kolom (text, number, currency, percentage, badge, date)",
+            "default": "text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label"
+        ],
+        "title": "AuditColumn"
+      },
+      "AuditTable": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Judul tabel audit"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Keterangan cakupan data audit transaksi / entitas"
+          },
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/AuditColumn"
+            },
+            "type": "array",
+            "title": "Columns",
+            "description": "Definisi daftar kolom tabel",
+            "default": []
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Rows",
+            "description": "Daftar record baris data mentah/agregat untuk audit total",
+            "default": []
+          },
+          "total_records": {
+            "type": "integer",
+            "title": "Total Records",
+            "description": "Jumlah total baris data yang diaudit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "description",
+          "total_records"
+        ],
+        "title": "AuditTable"
+      },
       "BatchLogItem": {
         "properties": {
           "batch_id": {
@@ -1320,6 +1425,17 @@
             "description": "Daftar spesifikasi grafik visualisasi",
             "default": []
           },
+          "audit_table": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AuditTable"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tabel data audit granular pendukung metrik kuantitatif"
+          },
           "model_metadata": {
             "items": {
               "$ref": "#/components/schemas/ModelMetadata"
@@ -1718,11 +1834,41 @@
       },
       "ModelTrainRequest": {
         "properties": {
+          "model_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Name",
+            "description": "Nama model machine learning (default: dari konfigurasi sistem)"
+          },
           "model_version": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Model Version",
-            "description": "Versi model semantic yang akan dilatih",
-            "default": "1.0.0"
+            "description": "Versi model semantic yang akan dilatih (default: dari ml_config)"
+          },
+          "preset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset",
+            "description": "Profil preset hyperparameter ('default', 'fast_prototype', 'deep_tuned', 'high_recall')"
           },
           "test_size_ratio": {
             "type": "number",
@@ -1743,7 +1889,7 @@
               }
             ],
             "title": "Hyperparameters",
-            "description": "Custom hyperparameter dictionary untuk XGBoost"
+            "description": "Custom hyperparameter dictionary untuk model"
           },
           "set_as_active": {
             "type": "boolean",
@@ -1971,6 +2117,48 @@
           "success"
         ],
         "title": "ResponseEnvelope[CustomerRiskProfile]"
+      },
+      "ResponseEnvelope_Dict_str__Any__": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Status keberhasilan operasi"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "Payload data utama respons"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/ResponseMeta",
+            "description": "Metadata pendukung"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Objek error jika operasi gagal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "ResponseEnvelope[Dict[str, Any]]"
       },
       "ResponseEnvelope_HealthResponse_": {
         "properties": {
