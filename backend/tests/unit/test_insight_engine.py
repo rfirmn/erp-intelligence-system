@@ -83,3 +83,60 @@ def test_validator_and_json_sanitizer():
     validated = validate_insight_package(parsed)
     assert isinstance(validated, InsightPackage)
     assert validated.module == "commercial"
+
+
+@pytest.mark.asyncio
+async def test_gemini_api_payload_and_header_contract(monkeypatch):
+    """Verify UnifiedLLMClient calls Gemini using official header auth, system_instruction, and markdown resilience."""
+    import httpx
+
+    client = UnifiedLLMClient(provider="gemini", api_key="test-gemini-key-12345")
+    captured_requests = []
+
+    mock_gemini_response = {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [
+                        {
+                            "text": "```json\n{\"executive_summary\": \"Analisis risiko berhasil\", \"narrative_insights\": []}\n```"
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+
+    async def mock_post(self, url, *args, **kwargs):
+        captured_requests.append({
+            "url": str(url),
+            "headers": kwargs.get("headers"),
+            "json": kwargs.get("json"),
+        })
+        request = httpx.Request("POST", url)
+        return httpx.Response(200, json=mock_gemini_response, request=request)
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    result = await client._call_gemini("Ringkas performa kuartal 3")
+
+    # 1. URL verification: Clean without query parameter key
+    assert len(captured_requests) == 1
+    req = captured_requests[0]
+    assert "?key=" not in req["url"]
+    assert f"models/{client.gemini_model}:generateContent" in req["url"]
+
+    # 2. Header verification: x-goog-api-key present
+    assert req["headers"]["x-goog-api-key"] == "test-gemini-key-12345"
+    assert req["headers"]["Content-Type"] == "application/json"
+
+    # 3. Payload verification: native system_instruction and role user
+    payload = req["json"]
+    assert "system_instruction" in payload
+    assert len(payload["system_instruction"]["parts"]) > 0
+    assert payload["contents"][0]["role"] == "user"
+    assert payload["contents"][0]["parts"][0]["text"] == "Ringkas performa kuartal 3"
+    assert payload["generationConfig"]["responseMimeType"] == "application/json"
+
+    # 4. Parsing resilience: markdown fence stripped and parsed
+    assert result["executive_summary"] == "Analisis risiko berhasil"

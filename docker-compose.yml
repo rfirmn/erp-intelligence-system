@@ -4,21 +4,23 @@ services:
     container_name: erp_postgres_fs
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-fs_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fs_secret_change_me}
+      POSTGRES_USER: ${POSTGRES_USER:-rio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
       POSTGRES_DB: ${POSTGRES_DB:-erp_intelligence_fs}
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "5434:5432"
     volumes:
       - postgres_fs_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-fs_user} -d $${POSTGRES_DB:-erp_intelligence_fs}"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-rio} -d $${POSTGRES_DB:-erp_intelligence_fs}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     networks:
       - isp_internal_net
+      - erp_shared_net
 
   backend:
     build:
@@ -40,7 +42,7 @@ services:
       APP_HOST: 0.0.0.0
       APP_PORT: ${APP_PORT:-8000}
       # External Mock ERP database connection URL (points to erp_mock_source_db on erp_shared_net or host)
-      ERP_DATABASE_URL: ${ERP_DATABASE_URL:-postgresql+asyncpg://erp_user:erp_secret_123@erp_mock_source_db:5432/isp_erp_db}
+      ERP_DATABASE_URL: ${ERP_DATABASE_URL:-postgresql+asyncpg://${ERP_DB_USER:-erp_user}:${ERP_DB_PASSWORD:-erp_secret_123}@erp_mock_source_db:5432/${ERP_DB_NAME:-isp_erp_db}}
       ERP_MOCK_DATA: ${ERP_MOCK_DATA:-false}
     ports:
       - "${APP_PORT:-8000}:${APP_PORT:-8000}"

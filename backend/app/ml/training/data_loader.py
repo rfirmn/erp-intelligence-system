@@ -1,6 +1,6 @@
 from datetime import date
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +18,7 @@ async def load_churn_training_data(
     session: AsyncSession,
     auto_generate_labels_if_empty: bool = True,
     test_size_ratio: float = 0.2,
-) -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series, Dict[str, any]]:
+) -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series, Dict[str, Any]]:
     """Load training dataset for Customer Churn prediction with anti-leakage temporal split.
     
     Returns:
@@ -31,7 +31,7 @@ async def load_churn_training_data(
 
     if not existing_labels and auto_generate_labels_if_empty:
         # Determine existing snapshot dates
-        dates_q = select(FeatureCustomerChurn.snapshot_date).distinct()
+        dates_q = select(col(FeatureCustomerChurn.snapshot_date)).distinct()
         dates_res = await session.execute(dates_q)
         snapshot_dates = [d[0] for d in dates_res.fetchall()]
 
@@ -112,8 +112,8 @@ async def load_churn_training_data(
         "val_samples": len(X_val),
         "positive_class_train": int(y_train.sum()),
         "positive_class_val": int(y_val.sum()),
-        "churn_rate_train": round(float(y_train.mean()), 4),
-        "churn_rate_val": round(float(y_val.mean()), 4),
+        "churn_rate_train": round((y_train.mean()), 4),
+        "churn_rate_val": round((y_val.mean()), 4),
         "feature_columns": ALL_FEATURE_COLUMNS,
     }
 

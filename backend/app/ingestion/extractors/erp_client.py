@@ -155,12 +155,13 @@ class ERPConnector:
         self._is_mock = settings.is_mock_source()
         self._mock_gen = MockERPGenerator()
 
-        if not self._is_mock and settings.ERP_DATABASE_URL:
-            logger.info("Initializing live read-only connection to external ERP database...")
-            url = settings.ERP_DATABASE_URL
-            if url.startswith("postgresql://"):
-                url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-            self._engine = create_async_engine(url, echo=False, pool_size=3)
+        if not self._is_mock:
+            url = settings.get_erp_database_url()
+            if url:
+                logger.info("Initializing live read-only connection to external ERP database...")
+                if url.startswith("postgresql://"):
+                    url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+                self._engine = create_async_engine(url, echo=False, pool_size=settings.ERP_DB_POOL_SIZE)
         else:
             logger.info("ERPConnector running in MOCK GENERATOR mode. Data will be tagged as mock.")
 

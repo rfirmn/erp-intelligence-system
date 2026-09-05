@@ -4,8 +4,10 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.exceptions import EntityNotFoundError
 from app.core.session import get_db
+from app.ml.config import HYPERPARAMETER_PRESETS, ml_config
 from app.ml.inference.churn_predictor import ChurnInferenceService
 from app.ml.registry import (
     get_active_model_metadata,
@@ -50,7 +52,9 @@ async def train_churn_model_endpoint(
     try:
         train_result = await train_customer_churn_model(
             session=session,
+            model_name=req.model_name,
             model_version=req.model_version,
+            preset=req.preset,
             hyperparameters=req.hyperparameters,
             test_size_ratio=req.test_size_ratio,
             set_as_active=req.set_as_active,
@@ -85,9 +89,9 @@ async def get_churn_metadata_endpoint(request: Request):
         )
 
     typed_resp = ModelMetadataResponse(
-        model_name=meta.get("model_name", "churn_xgboost"),
-        model_version=meta.get("model_version", "1.0.0"),
-        algorithm=meta.get("algorithm", "XGBClassifier"),
+        model_name=meta.get("model_name", ml_config.model_identity.model_name),
+        model_version=meta.get("model_version", ml_config.model_identity.default_version),
+        algorithm=meta.get("algorithm", ml_config.model_identity.algorithm),
         trained_at=meta.get("trained_at"),
         features=meta.get("features", []),
         metrics=meta.get("metrics"),
@@ -106,6 +110,29 @@ async def list_churn_models_endpoint(request: Request):
     request_id = getattr(request.state, "request_id", None)
     models = list_available_models()
     return success_response(data=models, request_id=request_id)
+
+
+@router.get(
+    "/models/churn/tuning-specs",
+    response_model=ResponseEnvelope[Dict[str, Any]],
+    summary="Get Hyperparameter Presets and Tuning Search Space",
+    description="Melihat profil preset hyperparameter (default, fast_prototype, deep_tuned, high_recall) dan parameter grid untuk eksperimen model.",
+)
+async def get_tuning_specs_endpoint(request: Request):
+    request_id = getattr(request.state, "request_id", None)
+    return success_response(
+        data={
+            "default_hyperparameters": ml_config.hyperparameters.to_dict(),
+            "presets": HYPERPARAMETER_PRESETS,
+            "tuning_search_space": ml_config.tuning.param_grid,
+            "risk_thresholds": {
+                "classification_threshold": ml_config.risk_thresholds.classification_threshold,
+                "high_risk": ml_config.risk_thresholds.high_risk,
+                "medium_risk": ml_config.risk_thresholds.medium_risk,
+            },
+        },
+        request_id=request_id,
+    )
 
 
 @router.post(
@@ -169,8 +196,8 @@ async def predict_churn_batch_endpoint(
 )
 async def get_high_risk_customers_endpoint(
     request: Request,
-    limit: int = Query(default=20, ge=1, le=100, description="Maksimum jumlah pelanggan yang ditampilkan"),
-    min_probability: float = Query(default=0.70, ge=0.0, le=1.0, description="Ambang batas probabilitas minimal"),
+    limit: Optional[int] = Query(default=None, ge=1, le=100, description="Maksimum jumlah pelanggan yang ditampilkan"),
+    min_probability: Optional[float] = Query(default=None, ge=0.0, le=1.0, description="Ambang batas probabilitas minimal"),
     snapshot_date: Optional[str] = Query(default=None, description="Tanggal snapshot (opsional, default: terbaru)"),
     session: AsyncSession = Depends(get_db),
 ):
@@ -185,11 +212,16 @@ async def get_high_risk_customers_endpoint(
                 detail="Format snapshot_date harus YYYY-MM-DD",
             )
 
+    resolved_limit = limit if limit is not None else settings.AGENT_HIGH_RISK_LIMIT
+    resolved_min_prob = (
+        min_probability if min_probability is not None else ml_config.risk_thresholds.high_risk
+    )
+
     try:
         customers = await ChurnInferenceService.get_high_risk_customers(
             session=session,
-            limit=limit,
-            min_probability=min_probability,
+            limit=resolved_limit,
+            min_probability=resolved_min_prob,
             snapshot_date=target_date,
         )
         typed_data = [CustomerRiskProfile(**c).model_dump() for c in customers]

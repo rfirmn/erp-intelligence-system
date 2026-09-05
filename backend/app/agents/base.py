@@ -1,6 +1,6 @@
 from datetime import date
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union, cast
 from langgraph.graph import END, StateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +19,7 @@ class GenericDomainAgent:
         self.graph = self._build_graph()
 
     def _build_graph(self):
-        workflow = StateGraph(AgentState)
+        workflow = StateGraph(cast(Any, AgentState))  # type: ignore
 
         async def _baseline_metrics_node(state: AgentState) -> Dict[str, Any]:
             # Provide baseline structured KPI cards depending on domain
@@ -50,10 +50,10 @@ class GenericDomainAgent:
             "chart_specs": [],
             "errors": [],
         }
-        return await self.graph.ainvoke(initial_state)
+        return cast(AgentState, await self.graph.ainvoke(initial_state))
 
 
-def get_domain_agent(domain: str, session: AsyncSession):
+def get_domain_agent(domain: str, session: AsyncSession) -> Union[CommercialAgent, GenericDomainAgent]:
     """Factory helper to obtain domain-specialized LangGraph agent."""
     norm = domain.lower()
     if norm == "commercial":

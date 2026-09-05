@@ -1,6 +1,6 @@
 from datetime import date
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, cast
 from langgraph.graph import END, StateGraph
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +9,8 @@ from sqlmodel import col
 from app.agents.state import AgentState
 from app.agents.tools.ml_tool import MLPredictionTool
 from app.agents.tools.sql_tool import SafeSQLQueryTool
+from app.core.config import settings
+from app.ml.config import ml_config
 from app.models.dimensions import DimCustomer, DimPackage
 from app.models.facts import FactBillingMonthly, FactSubscriptionSnapshot
 from app.models.features import FeatureCustomerChurn
@@ -26,7 +28,7 @@ class CommercialAgent:
         self.graph = self._build_graph()
 
     def _build_graph(self):
-        workflow = StateGraph(AgentState)
+        workflow = StateGraph(cast(Any, AgentState))  # type: ignore
 
         # 1. Register Nodes
         workflow.add_node("fetch_metrics", self._fetch_metrics_node)
@@ -55,8 +57,8 @@ class CommercialAgent:
         )
         res_mrr = await self.session.execute(q_mrr)
         row = res_mrr.fetchone()
-        active_subs = row[0] or 0
-        total_mrr = float(row[1] or 0.0)
+        active_subs = int(row[0] or 0) if row else 0
+        total_mrr = float(row[1] or 0.0) if row else 0.0
         arpu = round(total_mrr / active_subs, 2) if active_subs > 0 else 0.0
 
         raw_metrics = {
@@ -68,7 +70,10 @@ class CommercialAgent:
 
     async def _fetch_predictions_node(self, state: AgentState) -> Dict[str, Any]:
         """Fetch ML predictions and high-risk segment with explainability drivers."""
-        high_risk = await self.ml_tool.get_high_risk_customers(limit=25, min_probability=0.50)
+        high_risk = await self.ml_tool.get_high_risk_customers(
+            limit=settings.AGENT_HIGH_RISK_LIMIT,
+            min_probability=ml_config.risk_thresholds.medium_risk,
+        )
 
         # Calculate total MRR at risk
         mrr_at_risk = 0.0
@@ -76,9 +81,9 @@ class CommercialAgent:
             # Look up monthly fee
             cid = cust["customer_id"]
             q = (
-                select(FeatureCustomerChurn.monthly_fee_current)
-                .where(FeatureCustomerChurn.customer_id == cid)
-                .order_by(FeatureCustomerChurn.snapshot_date.desc())
+                select(col(FeatureCustomerChurn.monthly_fee_current))
+                .where(col(FeatureCustomerChurn.customer_id) == cid)
+                .order_by(col(FeatureCustomerChurn.snapshot_date).desc())
                 .limit(1)
             )
             fee_res = await self.session.execute(q)
@@ -100,13 +105,13 @@ class CommercialAgent:
         # Query billing delay trajectory for past 3 periods
         query = (
             select(
-                FactBillingMonthly.invoice_period,
-                func.count(FactBillingMonthly.customer_key),
-                func.avg(FactBillingMonthly.days_late),
-                func.sum(FactBillingMonthly.invoiced_amount),
+                col(FactBillingMonthly.invoice_period),
+                func.count(col(FactBillingMonthly.customer_key)),
+                func.avg(col(FactBillingMonthly.days_late)),
+                func.sum(col(FactBillingMonthly.invoiced_amount)),
             )
-            .group_by(FactBillingMonthly.invoice_period)
-            .order_by(FactBillingMonthly.invoice_period.desc())
+            .group_by(col(FactBillingMonthly.invoice_period))
+            .order_by(col(FactBillingMonthly.invoice_period).desc())
             .limit(4)
         )
         res = await self.session.execute(query)
@@ -172,4 +177,4 @@ class CommercialAgent:
         }
 
         final_state = await self.graph.ainvoke(initial_state)
-        return final_state
+        return cast(AgentState, final_state)

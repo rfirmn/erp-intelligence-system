@@ -11,7 +11,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Application Settings
+    # 1. Application Settings
     PROJECT_NAME: str = "ERP Intelligence Dashboard API"
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
@@ -19,13 +19,18 @@ class Settings(BaseSettings):
     APP_PORT: int = 8000
     API_V1_STR: str = "/api/v1"
 
-    # Security & Auth
-    SECRET_KEY: str = "dev-insecure-secret-key-change-in-production-min-32-chars"
+    # 2. Security & Auth (Strict: Wajib disuplai dari .env / Environment)
+    SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
     SECURITY_ENABLED: bool = False
+    DEV_USER_ID: str = "usr-001"
+    DEV_USER_USERNAME: str = "admin@isp.net"
+    DEV_USER_PASSWORD: str
+    DEV_USER_FULL_NAME: str = "System Administrator"
+    DEV_USER_ROLE: str = "admin"
 
-    # CORS
+    # 3. CORS
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",
         "http://localhost:5173",
@@ -46,30 +51,50 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
 
-    # PostgreSQL Feature Store Database
+    # 4. PostgreSQL Feature Store Database (Strict: Kredensial wajib dari .env)
     DATABASE_URL: Optional[str] = None
-    POSTGRES_USER: str = "rio"
+    POSTGRES_USER: str
     POSTGRES_PASSWORD: str = ""
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
-    POSTGRES_DB: str = "erp_intelligence_fs"
+    POSTGRES_DB: str
 
     # Connection Pool
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
     DB_TIMEOUT_SECONDS: int = 10
 
-    # ERP Source Connection & Ingestion
+    # 5. ERP Source Connection & Ingestion (Strict: Kredensial wajib dari .env)
     ERP_DATABASE_URL: Optional[str] = None
+    ERP_DB_USER: str
+    ERP_DB_PASSWORD: str
+    ERP_DB_HOST: str = "localhost"
+    ERP_DB_PORT: int = 5433
+    ERP_DB_NAME: str
+    ERP_DB_POOL_SIZE: int = 3
     ERP_MOCK_DATA: bool = True
     ALLOW_MOCK_IN_PRODUCTION: bool = False
     INGESTION_BATCH_SIZE: int = 5000
     SCHEDULER_ENABLED: bool = True
 
+    # 6. AI & LLM Engine Configuration (Zone 3 & 4)
+    LLM_PROVIDER: str = "gemini"  # "gemini" | "openai" | "fallback"
+    LLM_TEMPERATURE: float = 0.2
+    LLM_TIMEOUT_SECONDS: float = 15.0
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta"
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_MODEL: str = "gpt-4o-mini"
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+
+    # 7. Agent & Safety Configuration (Zone 3)
+    AGENT_SQL_MAX_ROWS: int = 100
+    AGENT_HIGH_RISK_LIMIT: int = 25
+
     def get_database_url(self) -> str:
         """Dynamically assemble the asyncpg PostgreSQL connection URL if not directly specified."""
         if self.DATABASE_URL:
-            # Ensure it uses the asyncpg driver
             url = self.DATABASE_URL
             if url.startswith("postgresql://"):
                 url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
@@ -83,6 +108,22 @@ class Settings(BaseSettings):
             f"postgresql+asyncpg://{auth}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
+    def get_erp_database_url(self) -> str:
+        """Assemble asyncpg PostgreSQL connection URL for ERP source."""
+        if self.ERP_DATABASE_URL:
+            url = self.ERP_DATABASE_URL
+            if url.startswith("postgresql://"):
+                url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return url
+
+        auth = self.ERP_DB_USER
+        if self.ERP_DB_PASSWORD:
+            auth += f":{self.ERP_DB_PASSWORD}"
+
+        return (
+            f"postgresql+asyncpg://{auth}@{self.ERP_DB_HOST}:{self.ERP_DB_PORT}/{self.ERP_DB_NAME}"
+        )
+
     def is_mock_source(self) -> bool:
         """Determine whether the system should run against the mock generator or live ERP database."""
         if self.ENVIRONMENT == "production":
@@ -91,9 +132,8 @@ class Settings(BaseSettings):
                     "CRITICAL CONFIGURATION ERROR: ERP_MOCK_DATA cannot be True in 'production' environment "
                     "without explicit ALLOW_MOCK_IN_PRODUCTION=True override."
                 )
-            return False if self.ERP_DATABASE_URL else False
-        return self.ERP_MOCK_DATA or (self.ERP_DATABASE_URL is None)
+            return False if (self.ERP_DATABASE_URL or self.ERP_DB_HOST) else False
+        return self.ERP_MOCK_DATA or (self.ERP_DATABASE_URL is None and not self.ERP_DB_HOST)
 
 
 settings = Settings()
-

@@ -1,8 +1,10 @@
 import logging
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
 
 logger = logging.getLogger("erp_agents.tools.sql")
 
@@ -23,9 +25,9 @@ FORBIDDEN_KEYWORDS = [
 class SafeSQLQueryTool:
     """Read-only SQL executor restricted to analytical querying on feature_store schema."""
 
-    def __init__(self, session: AsyncSession, max_rows: int = 100):
+    def __init__(self, session: AsyncSession, max_rows: Optional[int] = None):
         self.session = session
-        self.max_rows = max_rows
+        self.max_rows = max_rows if max_rows is not None else settings.AGENT_SQL_MAX_ROWS
 
     def validate_query(self, query: str) -> None:
         """Validate that the query is strictly a read-only SELECT statement."""
@@ -35,9 +37,10 @@ class SafeSQLQueryTool:
 
         for kw in FORBIDDEN_KEYWORDS:
             if re.search(kw, normalized, re.IGNORECASE):
-                raise PermissionError(f"Query ditolak: terdeteksi instruksi mutasi data yang dilarang ({kw.strip(r'\b')}).")
+                kw_clean = kw.strip(r"\b")
+                raise PermissionError(f"Query ditolak: terdeteksi instruksi mutasi data yang dilarang ({kw_clean}).")
 
-    async def execute(self, query: str, params: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+    async def execute(self, query: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """Execute validated query safely and return rows as list of dicts."""
         self.validate_query(query)
 
