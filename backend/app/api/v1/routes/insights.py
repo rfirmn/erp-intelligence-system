@@ -26,17 +26,18 @@ VALID_MODULES = [
     "/dashboard/overview",
     response_model=ResponseEnvelope[InsightPackage],
     summary="Get Executive Overview Dashboard Insights",
-    description="Mengambil wawasan ringkasan eksekutif tingkat tinggi lintas modul bisnis ISP.",
+    description="Mengambil wawasan ringkasan eksekutif tingkat tinggi lintas modul bisnis ISP dengan data agregasi riil dari datastore.",
 )
 async def get_dashboard_overview(
     request: Request,
     as_of_date: Optional[str] = Query(default=None, description="Tanggal snapshot (YYYY-MM-DD)"),
+    table: Optional[str] = Query(default=None, description="Tabel tindak lanjut yang dipilih: 'revenue_at_risk' atau 'data_quality'"),
     session: AsyncSession = Depends(get_db),
 ):
     request_id = getattr(request.state, "request_id", None)
     try:
         compiler = InsightCompiler(session=session)
-        package = await compiler.compile_module_insight(domain="overview", as_of_date=as_of_date)
+        package = await compiler.compile_module_insight(domain="overview", as_of_date=as_of_date, table_name=table)
         return success_response(data=package.model_dump(), request_id=request_id)
     except Exception as e:
         logger.error(f"Failed to compile dashboard overview: {e}", exc_info=True)
@@ -52,14 +53,15 @@ async def get_dashboard_overview(
     summary="Get Domain Module Insights Package",
     description=(
         "Mengambil paket wawasan terstruktur untuk modul bisnis tertentu. "
-        "Mencakup ringkasan eksekutif kritis LLM, kartu KPI, narasi temuan berbasis alasan agen, "
-        "dan spesifikasi grafik Vega-Lite v5 yang terikat pada data aktual."
+        "Mencakup kartu KPI aktual, narasi temuan LLM, spesifikasi grafik interaktif Vega-Lite v5, "
+        "dan tabel tindak lanjut / audit yang dapat dipilih via parameter ?table=."
     ),
 )
 async def get_module_insight(
     module: str,
     request: Request,
     as_of_date: Optional[str] = Query(default=None, description="Tanggal snapshot (YYYY-MM-DD)"),
+    table: Optional[str] = Query(default=None, description="Pilihan dataset tabel audit/tindak lanjut yang ingin ditampilkan"),
     session: AsyncSession = Depends(get_db),
 ):
     request_id = getattr(request.state, "request_id", None)
@@ -73,7 +75,7 @@ async def get_module_insight(
 
     try:
         compiler = InsightCompiler(session=session)
-        package = await compiler.compile_module_insight(domain=norm_module, as_of_date=as_of_date)
+        package = await compiler.compile_module_insight(domain=norm_module, as_of_date=as_of_date, table_name=table)
         return success_response(data=package.model_dump(), request_id=request_id)
     except Exception as e:
         logger.error(f"Failed to compile insight for module '{module}': {e}", exc_info=True)
@@ -81,3 +83,4 @@ async def get_module_insight(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Gagal mengompilasi wawasan modul '{module}': {str(e)}",
         )
+

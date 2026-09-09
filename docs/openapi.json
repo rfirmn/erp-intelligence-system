@@ -651,7 +651,7 @@
           "Insights & Executive Dashboard"
         ],
         "summary": "Get Executive Overview Dashboard Insights",
-        "description": "Mengambil wawasan ringkasan eksekutif tingkat tinggi lintas modul bisnis ISP.",
+        "description": "Mengambil wawasan ringkasan eksekutif tingkat tinggi lintas modul bisnis ISP dengan data agregasi riil dari datastore.",
         "operationId": "get_dashboard_overview_api_v1_dashboard_overview_get",
         "parameters": [
           {
@@ -671,6 +671,24 @@
               "title": "As Of Date"
             },
             "description": "Tanggal snapshot (YYYY-MM-DD)"
+          },
+          {
+            "name": "table",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Tabel tindak lanjut yang dipilih: 'revenue_at_risk' atau 'data_quality'",
+              "title": "Table"
+            },
+            "description": "Tabel tindak lanjut yang dipilih: 'revenue_at_risk' atau 'data_quality'"
           }
         ],
         "responses": {
@@ -703,7 +721,7 @@
           "Insights & Executive Dashboard"
         ],
         "summary": "Get Domain Module Insights Package",
-        "description": "Mengambil paket wawasan terstruktur untuk modul bisnis tertentu. Mencakup ringkasan eksekutif kritis LLM, kartu KPI, narasi temuan berbasis alasan agen, dan spesifikasi grafik Vega-Lite v5 yang terikat pada data aktual.",
+        "description": "Mengambil paket wawasan terstruktur untuk modul bisnis tertentu. Mencakup kartu KPI aktual, narasi temuan LLM, spesifikasi grafik interaktif Vega-Lite v5, dan tabel tindak lanjut / audit yang dapat dipilih via parameter ?table=.",
         "operationId": "get_module_insight_api_v1_insights__module__get",
         "parameters": [
           {
@@ -732,6 +750,24 @@
               "title": "As Of Date"
             },
             "description": "Tanggal snapshot (YYYY-MM-DD)"
+          },
+          {
+            "name": "table",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pilihan dataset tabel audit/tindak lanjut yang ingin ditampilkan",
+              "title": "Table"
+            },
+            "description": "Pilihan dataset tabel audit/tindak lanjut yang ingin ditampilkan"
           }
         ],
         "responses": {

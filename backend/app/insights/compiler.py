@@ -6,13 +6,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.agents.base import get_domain_agent
 from app.agents.state import AgentState
+from app.insights.analytics_service import DirectAnalyticsService
 from app.insights.chart_generator import (
+    build_ar_aging_buckets_chart,
     build_ar_aging_chart,
     build_asset_health_chart,
+    build_billing_day_concentration_chart,
     build_billing_delay_trend_chart,
     build_churn_distribution_chart,
+    build_customer_growth_chart,
+    build_customers_per_city_chart,
     build_domain_health_chart,
+    build_installations_per_month_chart,
+    build_mrr_per_package_chart,
+    build_package_mix_chart,
+    build_payment_method_mix_chart,
+    build_overdue_trend_chart,
+    build_revenue_vs_payment_chart,
     build_stock_depletion_chart,
+    build_tax_trend_chart,
+    build_tenure_distribution_chart,
     build_ticket_sla_chart,
     build_vendor_performance_chart,
 )
@@ -38,45 +51,98 @@ class InsightCompiler:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.llm_client = UnifiedLLMClient()
+        self.analytics_service = DirectAnalyticsService(session=session)
 
     async def compile_module_insight(
         self,
         domain: str = "commercial",
         as_of_date: Optional[str] = None,
+        table_name: Optional[str] = None,
     ) -> InsightPackage:
-        """Run domain agent and compile into validated InsightPackage."""
+        """Run domain analytics and compile into validated InsightPackage."""
         norm_domain = domain.lower().strip()
-        logger.info(f"Compiling insight package for domain '{norm_domain}'...")
+        logger.info(f"Compiling insight package for domain '{norm_domain}' (table={table_name})...")
+        target_date = as_of_date or str(datetime.now(timezone.utc).date())
 
-        # 1. Execute LangGraph Domain Agent
-        agent = get_domain_agent(domain=norm_domain, session=self.session)
-        state = await agent.run(as_of_date=as_of_date)
+        high_risk = []
+        temporal_history = []
+        anomalies = []
 
-        target_date = state.get("as_of_date", str(datetime.now(timezone.utc).date()))
-        raw_metrics = state.get("raw_metrics", {})
-        high_risk = state.get("risk_predictions", [])
-        temporal_history = state.get("temporal_history", [])
-        anomalies = state.get("anomalies", [])
-
-        # 2. Dispatch domain-specific KPI cards, charts, audit tables, and model metadata
+        # 1. Direct Datastore Analytics for Phase 1 Domains
         if norm_domain == "overview":
-            key_metrics, vis_list, audit_table_dict, model_meta_list = self._assemble_overview(raw_metrics, state)
-        elif norm_domain == "finance":
-            key_metrics, vis_list, audit_table_dict, model_meta_list = self._assemble_finance(raw_metrics, state)
-        elif norm_domain == "procurement":
-            key_metrics, vis_list, audit_table_dict, model_meta_list = self._assemble_procurement(raw_metrics, state)
-        elif norm_domain == "inventory":
-            key_metrics, vis_list, audit_table_dict, model_meta_list = self._assemble_inventory(raw_metrics, state)
-        elif norm_domain == "asset":
-            key_metrics, vis_list, audit_table_dict, model_meta_list = self._assemble_asset(raw_metrics, state)
-        elif norm_domain == "service":
-            key_metrics, vis_list, audit_table_dict, model_meta_list = self._assemble_service(raw_metrics, state)
-        else:
-            key_metrics, vis_list, audit_table_dict, model_meta_list = self._assemble_commercial(
-                raw_metrics, high_risk, temporal_history
+            res = await self.analytics_service.get_overview_analytics(
+                as_of_date=as_of_date, table_name=table_name
             )
+            key_metrics = res["key_metrics"]
+            charts_data = res["charts_data"]
+            audit_table_dict = res["audit_table"]
+            vis_list = [
+                build_domain_health_chart(),
+                build_revenue_vs_payment_chart(charts_data["revenue_vs_payment"]),
+                build_customer_growth_chart(charts_data["customer_growth"]),
+                build_package_mix_chart(charts_data["package_mix"]),
+            ]
+            model_meta_list = []
+            raw_metrics = {m["key"]: m["value"] for m in key_metrics}
 
-        # 3. Synthesize Narrative via LLM Client (Tri-Pillar Injection with Domain Grounding)
+        elif norm_domain == "commercial":
+            res = await self.analytics_service.get_commercial_analytics(
+                as_of_date=as_of_date, table_name=table_name
+            )
+            key_metrics = res["key_metrics"]
+            charts_data = res["charts_data"]
+            audit_table_dict = res["audit_table"]
+            vis_list = [
+                build_churn_distribution_chart(low_count=20, med_count=7, high_count=3),
+                build_customer_growth_chart(charts_data["customer_growth"]),
+                build_package_mix_chart(charts_data["package_distribution"]),
+                build_mrr_per_package_chart(charts_data["mrr_per_package"]),
+                build_customers_per_city_chart(charts_data["customers_per_city"]),
+                build_ar_aging_buckets_chart(charts_data["ar_aging"], chart_id="chart-ar-aging-commercial"),
+                build_installations_per_month_chart(charts_data["installations_per_month"]),
+                build_billing_day_concentration_chart(charts_data["billing_day_concentration"]),
+                build_tenure_distribution_chart(charts_data["tenure_distribution"]),
+            ]
+            active_meta = get_active_model_metadata()
+            model_meta_list = [active_meta] if active_meta else []
+            raw_metrics = {m["key"]: m["value"] for m in key_metrics}
+
+        elif norm_domain == "finance":
+            res = await self.analytics_service.get_finance_analytics(
+                as_of_date=as_of_date, table_name=table_name
+            )
+            key_metrics = res["key_metrics"]
+            charts_data = res["charts_data"]
+            audit_table_dict = res["audit_table"]
+            vis_list = [
+                build_revenue_vs_payment_chart(charts_data["invoice_vs_payment"]),
+                build_ar_aging_buckets_chart(charts_data["ar_aging"], chart_id="chart-ar-aging"),
+                build_payment_method_mix_chart(charts_data["payment_method_mix"]),
+                build_overdue_trend_chart(charts_data["overdue_trend"]),
+                build_tax_trend_chart(charts_data["tax_trend"]),
+            ]
+            model_meta_list = []
+            raw_metrics = {m["key"]: m["value"] for m in key_metrics}
+
+        else:
+            # Fallback for other domains via LangGraph agent baseline
+            agent = get_domain_agent(domain=norm_domain, session=self.session)
+            state = await agent.run(as_of_date=as_of_date)
+            raw_metrics = state.get("raw_metrics", {})
+            high_risk = state.get("risk_predictions", [])
+            temporal_history = state.get("temporal_history", [])
+            anomalies = state.get("anomalies", [])
+
+            if norm_domain == "procurement":
+                key_metrics, vis_list, audit_table_dict, model_meta_list = self._assemble_procurement(raw_metrics, state)
+            elif norm_domain == "inventory":
+                key_metrics, vis_list, audit_table_dict, model_meta_list = self._assemble_inventory(raw_metrics, state)
+            elif norm_domain == "asset":
+                key_metrics, vis_list, audit_table_dict, model_meta_list = self._assemble_asset(raw_metrics, state)
+            else:
+                key_metrics, vis_list, audit_table_dict, model_meta_list = self._assemble_service(raw_metrics, state)
+
+        # 2. Synthesize Narrative via LLM Client (Tri-Pillar Injection with Domain Grounding)
         synthesis = await self.llm_client.generate_insight_narrative(
             domain=norm_domain,
             as_of_date=target_date,
@@ -89,7 +155,7 @@ class InsightCompiler:
         exec_summary = synthesis.get("executive_summary", "")
         narratives_raw = synthesis.get("narrative_insights", [])
 
-        # 4. Assemble Full Package Payload
+        # 3. Assemble Full Package Payload
         package_payload: Dict[str, Any] = {
             "module": norm_domain,
             "as_of_date": target_date,
@@ -102,7 +168,7 @@ class InsightCompiler:
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        # 5. Validate through Pydantic
+        # 4. Validate through Pydantic
         return validate_insight_package(package_payload)
 
     def _assemble_overview(self, metrics: Dict[str, Any], state: AgentState):

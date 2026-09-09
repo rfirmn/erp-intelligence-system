@@ -236,18 +236,50 @@ Insight package adalah kontrak inti yang digunakan oleh frontend dashboard untuk
 
 ## 6. Endpoints Wawasan (Production & Living Prototype)
 
-### 6.1 Dashboard Utama Ringkasan Eksekutif (Production)
+### 6.1 Dashboard Utama Ringkasan Eksekutif (Production / Phase 1 Direct Datastore)
 - **Endpoint**: `GET /api/v1/dashboard/overview`
-- **Query Parameter**: `as_of_date` (opsional, format `YYYY-MM-DD`, default: tanggal snapshot terbaru).
-- **Keterangan**: Mengambil wawasan ringkasan eksekutif makro lintas modul bisnis ISP yang dikompilasi oleh LangGraph Domain Agents dan LLM Synthesis Engine dengan visualisasi Vega-Lite v5.
+- **Query Parameter**:
+  - `as_of_date` (opsional, format `YYYY-MM-DD`): Filter tanggal acuan snapshot.
+  - `table` (opsional, string): Pilihan dataset tabel tindak lanjut yang dimuat.
+    - `revenue_at_risk` (default): Daftar pelanggan aktif dengan tunggakan overdue tertinggi.
+    - `data_quality`: Daftar log pengecekan anomali integritas data dari `data_quality_log`.
+- **Keterangan**: Mengambil wawasan ringkasan eksekutif makro yang diagregasi langsung secara real-time dari tabel datastore PostgreSQL (`dim_customer`, `stg_customer_subscription`, `stg_sales_invoice`, `stg_sales_payment`).
+- **Kartu KPI yang Tersedia**:
+  - `health_score`: Indeks kesehatan operasional agregat (0–100).
+  - `active_customers`: Total pelanggan unik berstatus aktif.
+  - `mrr`: Estimasi pendapatan rutin berulang (Monthly Recurring Revenue).
+  - `net_cashflow`: Realisasi penerimaan kas masuk operasional.
+  - `unpaid_ar`: Total piutang yang belum tertagih (Unpaid/Overdue/Partial).
+  - `collection_rate`: Rasio persentase pembayaran masuk terhadap total tagihan.
+- **Visualisasi Vega-Lite v5 yang Disediakan**:
+  - `chart-domain-health`: Skor kesehatan lintas domain operasional ISP.
+  - `chart-revenue-vs-payment`: Perbandingan bulanan tagihan faktur vs pembayaran masuk.
+  - `chart-customer-growth`: Tren pertumbuhan akuisisi pelanggan baru dan total pelanggan.
+  - `chart-package-mix`: Komposisi portofolio paket internet yang digunakan pelanggan.
 - **Response Success (`200 OK`)**: Mengembalikan amplop standar dengan `data` bertipe [`InsightPackage`](#51-definisi-schema-objek).
 
-### 6.2 Wawasan per Modul Bisnis (Production)
+### 6.2 Wawasan per Modul Bisnis (Production / Phase 1 Direct Datastore)
 - **Endpoint**: `GET /api/v1/insights/{module}`
 - **Path Parameter**: `module` (`overview`, `commercial`, `finance`, `procurement`, `inventory`, `asset`, `service`).
-- **Query Parameter**: `as_of_date` (opsional, format `YYYY-MM-DD`).
-- **Keterangan**: Mengambil paket wawasan terstruktur untuk modul bisnis terkait. Menggabungkan kartu KPI aktual, wawasan narasi berbasis bukti matematis model ML (TreeSHAP drivers), dan grafik interaktif Vega-Lite v5.
+- **Query Parameter**:
+  - `as_of_date` (opsional, format `YYYY-MM-DD`).
+  - `table` (opsional, string): Pilihan dataset tabel audit/tindak lanjut yang ingin dimuat ke dalam `audit_table`.
+    - **Modul Commercial**:
+      - `top_unpaid` (default): Ranking pelanggan dengan akumulasi tunggakan terbesar.
+      - `revenue_at_risk`: Pelanggan aktif dengan tagihan lewat jatuh tempo yang berisiko churn.
+      - `customers_without_sub`: Pelanggan terdaftar yang belum memiliki langganan aktif.
+      - `top_revenue`: Ranking pelanggan dengan kontribusi pembayaran tertinggi.
+    - **Modul Finance**:
+      - `overdue_invoices` (default): Antrean faktur yang telah melewati jatuh tempo.
+      - `discrepancies`: Rekonsiliasi faktur dengan pembayaran parsial / belum lunas.
+- **Spesifikasi Modul Commercial**:
+  - **KPIs**: `active_customers`, `active_subscriptions`, `mrr`, `unpaid_customers`, `avg_tenure`, `churn_proxy`.
+  - **Visualisasi**: `chart-churn-distribution`, `chart-customer-growth`, `chart-package-mix`, `chart-mrr-per-package`, `chart-customers-per-city`, `chart-ar-aging-commercial`, `chart-installations-per-month`, `chart-billing-day-concentration`, `chart-tenure-distribution`.
+- **Spesifikasi Modul Finance**:
+  - **KPIs**: `net_cashflow`, `total_invoiced`, `total_paid`, `outstanding_ar`, `collection_rate`, `dso`, `tax_collected`, `partial_payment_rate`.
+  - **Visualisasi**: `chart-revenue-vs-payment`, `chart-ar-aging`, `chart-payment-method-mix`, `chart-overdue-trend`, `chart-tax-trend`.
 - **Response Success (`200 OK`)**: Mengembalikan amplop standar dengan `data` bertipe [`InsightPackage`](#51-definisi-schema-objek).
+
 
 ### 6.3 Ambil Wawasan Mock (Living Prototype / Offline Testing)
 - **Endpoint**: `GET /api/v1/insights/mock/{module}`
