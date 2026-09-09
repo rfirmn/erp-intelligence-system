@@ -67,7 +67,7 @@ async def finish_batch(
 ) -> None:
     """Mark batch execution complete with final status and row count."""
     mock_marker = " [MOCK]" if is_mock else " [LIVE]"
-    status_label = f"{status}{mock_marker}"
+    status_label = f"{status}{mock_marker}"[:50]
 
     stmt = (
         update(ETLBatchLog)
