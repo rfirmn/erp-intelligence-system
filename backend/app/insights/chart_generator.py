@@ -334,3 +334,538 @@ def build_ticket_sla_chart(
         "spec": spec,
         "data": chart_data,
     }
+
+
+# =============================================================================
+# PHASE 1 DIRECT DATASTORE CHARTS (OVERVIEW, COMMERCIAL, FINANCE)
+# =============================================================================
+
+def build_revenue_vs_payment_chart(
+    chart_data: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Construct Vega-Lite v5 dual-line / grouped bar chart for Invoiced vs Collected Revenue."""
+    data = chart_data or []
+    # Reshape into long form for easy Vega-Lite grouped encoding
+    long_data = []
+    for row in data:
+        long_data.append({
+            "month": row.get("month", "N/A"),
+            "tipe": "Tagihan (Invoiced)",
+            "amount": row.get("invoiced", 0.0),
+        })
+        long_data.append({
+            "month": row.get("month", "N/A"),
+            "tipe": "Realisasi Kas (Collected)",
+            "amount": row.get("collected", 0.0),
+        })
+
+    spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Perbandingan Tagihan vs Pembayaran Masuk per Bulan",
+        "mark": {"type": "bar", "cornerRadiusEnd": 3},
+        "encoding": {
+            "x": {
+                "field": "month",
+                "type": "nominal",
+                "axis": {"title": "Bulan", "labelAngle": -25},
+            },
+            "y": {
+                "field": "amount",
+                "type": "quantitative",
+                "axis": {"title": "Jumlah (IDR)", "format": "s"},
+            },
+            "xOffset": {"field": "tipe"},
+            "color": {
+                "field": "tipe",
+                "type": "nominal",
+                "scale": {
+                    "domain": ["Tagihan (Invoiced)", "Realisasi Kas (Collected)"],
+                    "range": ["#3b82f6", "#10b981"],
+                },
+                "legend": {"title": "Arus Kas"},
+            },
+            "tooltip": [
+                {"field": "month", "type": "nominal", "title": "Bulan"},
+                {"field": "tipe", "type": "nominal", "title": "Kategori"},
+                {"field": "amount", "type": "quantitative", "title": "Total (Rp)", "format": ",.0f"},
+            ],
+        },
+        "data": {"values": long_data},
+    }
+
+    return {
+        "chart_id": "chart-revenue-vs-payment",
+        "title": "Tren Revenue vs Realisasi Pembayaran",
+        "description": "Perbandingan tagihan faktur yang diterbitkan vs realisasi pembayaran masuk bulanan",
+        "chart_library": "vega-lite",
+        "spec": spec,
+        "data": data,
+    }
+
+
+def build_customer_growth_chart(
+    chart_data: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Construct Vega-Lite v5 area/line chart for customer acquisition growth."""
+    data = chart_data or []
+
+    spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Tren Pertumbuhan Akumulasi Pelanggan ISP",
+        "mark": {"type": "area", "line": {"color": "#6366f1", "width": 2}, "color": {
+            "x1": 1, "y1": 1, "x2": 1, "y2": 0,
+            "gradient": "linear",
+            "stops": [
+                {"offset": 0, "color": "white"},
+                {"offset": 1, "color": "#6366f1"}
+            ]
+        }},
+        "encoding": {
+            "x": {
+                "field": "month",
+                "type": "nominal",
+                "axis": {"title": "Periode Bulan", "labelAngle": -25},
+            },
+            "y": {
+                "field": "cumulative_customers" if data and "cumulative_customers" in data[0] else "new_customers",
+                "type": "quantitative",
+                "axis": {"title": "Total Pelanggan"},
+            },
+            "tooltip": [
+                {"field": "month", "type": "nominal", "title": "Bulan"},
+                {"field": "new_customers", "type": "quantitative", "title": "Pelanggan Baru"},
+                {"field": "cumulative_customers", "type": "quantitative", "title": "Akumulasi"},
+            ],
+        },
+        "data": {"values": data},
+    }
+
+    return {
+        "chart_id": "chart-customer-growth",
+        "title": "Tren Pertumbuhan Pelanggan Baru & Basis Pelanggan",
+        "description": "Kinerja akuisisi dan pertumbuhan jumlah pelanggan aktif dari waktu ke waktu",
+        "chart_library": "vega-lite",
+        "spec": spec,
+        "data": data,
+    }
+
+
+def build_package_mix_chart(
+    chart_data: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Construct Vega-Lite v5 horizontal bar chart for internet package composition."""
+    data = chart_data or []
+
+    spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Komposisi Distribusi Paket Langganan Aktif",
+        "mark": {"type": "bar", "cornerRadiusEnd": 4},
+        "encoding": {
+            "y": {
+                "field": "package_name",
+                "type": "nominal",
+                "axis": {"title": "Nama Paket", "labelAngle": 0},
+                "sort": "-x",
+            },
+            "x": {
+                "field": "subscriptions",
+                "type": "quantitative",
+                "axis": {"title": "Jumlah Langganan"},
+            },
+            "color": {
+                "field": "package_name",
+                "type": "nominal",
+                "scale": {"scheme": "tableau10"},
+                "legend": None,
+            },
+            "tooltip": [
+                {"field": "package_name", "type": "nominal", "title": "Paket"},
+                {"field": "subscriptions", "type": "quantitative", "title": "Jumlah Langganan"},
+                {"field": "total_mrr", "type": "quantitative", "title": "Total MRR", "format": ",.0f"},
+            ],
+        },
+        "data": {"values": data},
+    }
+
+    return {
+        "chart_id": "chart-package-mix",
+        "title": "Komposisi Portofolio Paket Langganan",
+        "description": "Distribusi paket internet broadband yang paling banyak digunakan pelanggan aktif",
+        "chart_library": "vega-lite",
+        "spec": spec,
+        "data": data,
+    }
+
+
+def build_mrr_per_package_chart(
+    chart_data: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Construct Vega-Lite v5 chart for MRR contribution per package."""
+    data = chart_data or []
+
+    spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Kontribusi Monthly Recurring Revenue per Paket",
+        "mark": {"type": "bar", "cornerRadiusEnd": 4},
+        "encoding": {
+            "x": {
+                "field": "package_name",
+                "type": "nominal",
+                "axis": {"title": "Paket Internet", "labelAngle": -20},
+            },
+            "y": {
+                "field": "total_mrr",
+                "type": "quantitative",
+                "axis": {"title": "Total MRR (IDR)", "format": "s"},
+            },
+            "color": {"value": "#0284c7"},
+            "tooltip": [
+                {"field": "package_name", "type": "nominal", "title": "Paket"},
+                {"field": "total_mrr", "type": "quantitative", "title": "MRR (Rp)", "format": ",.0f"},
+            ],
+        },
+        "data": {"values": data},
+    }
+
+    return {
+        "chart_id": "chart-mrr-per-package",
+        "title": "Kontribusi Revenue (MRR) per Jenis Paket",
+        "description": "Porsi pendapatan berulang bulanan yang dihasilkan dari masing-masing paket layanan",
+        "chart_library": "vega-lite",
+        "spec": spec,
+        "data": data,
+    }
+
+
+def build_customers_per_city_chart(
+    chart_data: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Construct Vega-Lite v5 chart for geographic distribution of customers."""
+    data = chart_data or []
+
+    spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Sebaran Geografis Pelanggan Berdasarkan Kota / Wilayah",
+        "mark": {"type": "bar", "cornerRadiusEnd": 4},
+        "encoding": {
+            "y": {
+                "field": "city",
+                "type": "nominal",
+                "axis": {"title": "Kota / Wilayah Operasional"},
+                "sort": "-x",
+            },
+            "x": {
+                "field": "count",
+                "type": "quantitative",
+                "axis": {"title": "Jumlah Pelanggan"},
+            },
+            "color": {"value": "#8b5cf6"},
+            "tooltip": [
+                {"field": "city", "type": "nominal", "title": "Kota"},
+                {"field": "count", "type": "quantitative", "title": "Pelanggan"},
+            ],
+        },
+        "data": {"values": data},
+    }
+
+    return {
+        "chart_id": "chart-customers-per-city",
+        "title": "Sebaran Pelanggan per Kota / Wilayah",
+        "description": "Kepadatan basis pelanggan aktif untuk perencanaan kapasitas coverage dan teknisi",
+        "chart_library": "vega-lite",
+        "spec": spec,
+        "data": data,
+    }
+
+
+def build_ar_aging_buckets_chart(
+    chart_data: List[Dict[str, Any]],
+    chart_id: str = "chart-ar-aging",
+) -> Dict[str, Any]:
+    """Construct Vega-Lite v5 chart for Accounts Receivable aging buckets."""
+    data = chart_data or []
+
+    spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Analisis Umur Piutang (AR Aging Breakdown)",
+        "mark": {"type": "bar", "cornerRadiusEnd": 4},
+        "encoding": {
+            "x": {
+                "field": "bucket",
+                "type": "nominal",
+                "axis": {"title": "Kategori Umur Jatuh Tempo", "labelAngle": 0},
+            },
+            "y": {
+                "field": "amount",
+                "type": "quantitative",
+                "axis": {"title": "Total Piutang (IDR)", "format": "s"},
+            },
+            "color": {
+                "field": "bucket",
+                "type": "nominal",
+                "scale": {
+                    "domain": ["0–30 Hari", "31–60 Hari", "61–90 Hari", "60+ Hari", "90+ Hari"],
+                    "range": ["#22c55e", "#eab308", "#f97316", "#ef4444", "#dc2626"],
+                },
+                "legend": {"title": "Tingkat Keterlambatan"},
+            },
+            "tooltip": [
+                {"field": "bucket", "type": "nominal", "title": "Umur Piutang"},
+                {"field": "amount", "type": "quantitative", "title": "Total Tagihan (Rp)", "format": ",.0f"},
+                {"field": "count", "type": "quantitative", "title": "Jumlah Faktur"},
+            ],
+        },
+        "data": {"values": data},
+    }
+
+    return {
+        "chart_id": chart_id,
+        "title": "Distribusi Umur Piutang (AR Aging)",
+        "description": "Pengelompokan piutang berdasarkan lama hari keterlambatan dari tanggal jatuh tempo",
+        "chart_library": "vega-lite",
+        "spec": spec,
+        "data": data,
+    }
+
+
+def build_installations_per_month_chart(
+    chart_data: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Construct Vega-Lite v5 chart for monthly installation completions."""
+    data = chart_data or []
+
+    spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Volume Penyelesaian Instalasi Pelanggan per Bulan",
+        "mark": {"type": "line", "point": True, "strokeWidth": 2},
+        "encoding": {
+            "x": {
+                "field": "month",
+                "type": "nominal",
+                "axis": {"title": "Bulan", "labelAngle": -20},
+            },
+            "y": {
+                "field": "count",
+                "type": "quantitative",
+                "axis": {"title": "Instalasi Selesai"},
+            },
+            "color": {"value": "#06b6d4"},
+            "tooltip": [
+                {"field": "month", "type": "nominal", "title": "Bulan"},
+                {"field": "count", "type": "quantitative", "title": "Instalasi"},
+            ],
+        },
+        "data": {"values": data},
+    }
+
+    return {
+        "chart_id": "chart-installations-per-month",
+        "title": "Aktivitas Instalasi Baru per Bulan",
+        "description": "Kecepatan dan volume instalasi jaringan pelanggan baru oleh tim teknisi lapangan",
+        "chart_library": "vega-lite",
+        "spec": spec,
+        "data": data,
+    }
+
+
+def build_billing_day_concentration_chart(
+    chart_data: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Construct Vega-Lite v5 chart for billing cycle day distribution."""
+    data = chart_data or []
+
+    spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Konsentrasi Tanggal Siklus Tagihan (Billing Day)",
+        "mark": {"type": "bar", "cornerRadiusEnd": 3},
+        "encoding": {
+            "x": {
+                "field": "billing_day",
+                "type": "nominal",
+                "axis": {"title": "Tanggal Tagihan", "labelAngle": -45},
+            },
+            "y": {
+                "field": "count",
+                "type": "quantitative",
+                "axis": {"title": "Jumlah Langganan"},
+            },
+            "color": {"value": "#14b8a6"},
+            "tooltip": [
+                {"field": "billing_day", "type": "nominal", "title": "Siklus"},
+                {"field": "count", "type": "quantitative", "title": "Jumlah Langganan"},
+            ],
+        },
+        "data": {"values": data},
+    }
+
+    return {
+        "chart_id": "chart-billing-day-concentration",
+        "title": "Konsentrasi Tanggal Billing Pelanggan",
+        "description": "Distribusi tanggal penagihan langganan untuk menghindari beban penagihan menumpuk",
+        "chart_library": "vega-lite",
+        "spec": spec,
+        "data": data,
+    }
+
+
+def build_tenure_distribution_chart(
+    chart_data: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Construct Vega-Lite v5 chart for customer tenure distribution."""
+    data = chart_data or []
+
+    spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Distribusi Lama Berlangganan (Tenure)",
+        "mark": {"type": "bar", "cornerRadiusEnd": 4},
+        "encoding": {
+            "x": {
+                "field": "tenure_bucket",
+                "type": "nominal",
+                "axis": {"title": "Rentang Durasi Berlangganan", "labelAngle": 0},
+            },
+            "y": {
+                "field": "count",
+                "type": "quantitative",
+                "axis": {"title": "Jumlah Langganan"},
+            },
+            "color": {
+                "field": "tenure_bucket",
+                "type": "nominal",
+                "scale": {"scheme": "purples"},
+                "legend": None,
+            },
+            "tooltip": [
+                {"field": "tenure_bucket", "type": "nominal", "title": "Kategori Tenure"},
+                {"field": "count", "type": "quantitative", "title": "Jumlah Pelanggan"},
+            ],
+        },
+        "data": {"values": data},
+    }
+
+    return {
+        "chart_id": "chart-tenure-distribution",
+        "title": "Distribusi Lama Berlangganan Pelanggan (Tenure)",
+        "description": "Profil loyalitas dan kematangan masa berlangganan basis pelanggan ISP",
+        "chart_library": "vega-lite",
+        "spec": spec,
+        "data": data,
+    }
+
+
+def build_overdue_trend_chart(
+    chart_data: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Construct Vega-Lite v5 chart for monthly overdue receivable amount trend."""
+    data = chart_data or []
+
+    spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Tren Nilai Piutang Tertunggak per Bulan Jatuh Tempo",
+        "mark": {"type": "line", "point": True, "strokeWidth": 2.5},
+        "encoding": {
+            "x": {
+                "field": "due_month",
+                "type": "nominal",
+                "axis": {"title": "Bulan Jatuh Tempo", "labelAngle": -20},
+            },
+            "y": {
+                "field": "overdue_amount",
+                "type": "quantitative",
+                "axis": {"title": "Total Overdue (IDR)", "format": "s"},
+            },
+            "color": {"value": "#ef4444"},
+            "tooltip": [
+                {"field": "due_month", "type": "nominal", "title": "Bulan"},
+                {"field": "overdue_amount", "type": "quantitative", "title": "Overdue (Rp)", "format": ",.0f"},
+            ],
+        },
+        "data": {"values": data},
+    }
+
+    return {
+        "chart_id": "chart-overdue-trend",
+        "title": "Tren Akumulasi Piutang Jatuh Tempo (Overdue)",
+        "description": "Pergerakan jumlah nilai piutang yang lewat jatuh tempo dari bulan ke bulan",
+        "chart_library": "vega-lite",
+        "spec": spec,
+        "data": data,
+    }
+
+
+def build_tax_trend_chart(
+    chart_data: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Construct Vega-Lite v5 chart for monthly tax (PPN) generation."""
+    data = chart_data or []
+
+    spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Tren Pajak PPN 11% yang Terhimpun Bulanan",
+        "mark": {"type": "bar", "cornerRadiusEnd": 3},
+        "encoding": {
+            "x": {
+                "field": "month",
+                "type": "nominal",
+                "axis": {"title": "Bulan Tagihan", "labelAngle": -20},
+            },
+            "y": {
+                "field": "tax_amount",
+                "type": "quantitative",
+                "axis": {"title": "Pajak Terhimpun (IDR)", "format": "s"},
+            },
+            "color": {"value": "#f59e0b"},
+            "tooltip": [
+                {"field": "month", "type": "nominal", "title": "Bulan"},
+                {"field": "tax_amount", "type": "quantitative", "title": "PPN (Rp)", "format": ",.0f"},
+            ],
+        },
+        "data": {"values": data},
+    }
+
+    return {
+        "chart_id": "chart-tax-trend",
+        "title": "Tren Estimasi Pajak Terhimpun (PPN 11%)",
+        "description": "Porsi pajak pertambahan nilai dari faktur penjualan bulanan",
+        "chart_library": "vega-lite",
+        "spec": spec,
+        "data": data,
+    }
+
+
+def build_payment_method_mix_chart(
+    chart_data: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Construct Vega-Lite v5 chart for payment method distribution."""
+    data = chart_data or []
+
+    spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+        "description": "Distribusi Transaksi per Metode Pembayaran",
+        "mark": {"type": "arc", "innerRadius": 50},
+        "encoding": {
+            "theta": {"field": "total_amount", "type": "quantitative"},
+            "color": {
+                "field": "method",
+                "type": "nominal",
+                "scale": {"scheme": "category10"},
+                "legend": {"title": "Metode Pembayaran"},
+            },
+            "tooltip": [
+                {"field": "method", "type": "nominal", "title": "Metode"},
+                {"field": "transactions", "type": "quantitative", "title": "Transaksi"},
+                {"field": "total_amount", "type": "quantitative", "title": "Total Nominal (Rp)", "format": ",.0f"},
+            ],
+        },
+        "data": {"values": data},
+    }
+
+    return {
+        "chart_id": "chart-payment-method-mix",
+        "title": "Proporsi Saluran Metode Pembayaran",
+        "description": "Sebaran preferensi pembayaran tagihan oleh pelanggan",
+        "chart_library": "vega-lite",
+        "spec": spec,
+        "data": data,
+    }
+
