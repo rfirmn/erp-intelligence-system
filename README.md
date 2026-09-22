@@ -24,8 +24,9 @@
    - [A. Prasyarat](#a-prasyarat)
    - [B. Setup Lingkungan Lokal (Bare Metal / Virtualenv)](#b-setup-lingkungan-lokal-bare-metal--virtualenv)
    - [C. Menjalankan via Docker Compose](#c-menjalankan-via-docker-compose)
-   - [D. Setup Mock ERP Database (Live Ingestion)](#d-setup-mock-erp-database-live-ingestion)
-   - [E. Panduan Tunneling Ngrok](#e-panduan-tunneling-ngrok)
+   - [D. Setup Database Sumber ERP (MySQL Data Engineer / Mock PostgreSQL)](#d-setup-database-sumber-erp-mysql-data-engineer--mock-postgresql)
+   - [E. Panduan Sinkronisasi & Ekstraksi Data Manual (Demo & On-Demand)](#e-panduan-sinkronisasi--ekstraksi-data-manual-demo--on-demand)
+   - [F. Panduan Tunneling Ngrok](#f-panduan-tunneling-ngrok)
 8. [Pengujian & Penjaminan Kualitas](#-pengujian--penjaminan-kualitas)
 9. [Dokumentasi API & Integrasi Frontend](#-dokumentasi-api--integrasi-frontend)
 10. [Status Proyek](#-status-proyek)
@@ -249,27 +250,89 @@ docker compose down
 
 ---
 
-### D. Setup Mock ERP Database (Live Ingestion)
+### D. Setup Database Sumber ERP (MySQL Data Engineer / Mock PostgreSQL)
 
-Jika Anda ingin menguji integrasi pipeline ingestion langsung terhadap database operasional ERP sungguhan (dikelola oleh data engineer):
+Backend mendukung penarikan data secara *live* dari dua jenis database sumber:
 
+#### 1. Database Data Engineer (`garnet-mysql` / Proyek GarnetISP) — Default Aktif
+Database operasional MySQL 8.4 yang dikelola langsung oleh tim Data Engineer melalui akun aman *read-only* (`ml_readonly`).
+Pastikan kontainer `garnet-mysql` sedang berjalan pada port host **`3307`**, lalu pastikan konfigurasi di `.env` sudah mengarah ke database tersebut:
+```ini
+ERP_DATABASE_URL=mysql+asyncmy://ml_readonly:ml_readonly123@localhost:3307/garnet_platform
+ERP_MOCK_DATA=false
+```
+
+#### 2. Mock Database PostgreSQL (Lingkungan Terisolasi)
+Jika ingin menggunakan basis data mock PostgreSQL mandiri yang disediakan di repositori ini:
 ```bash
 # Buka terminal baru dan masuk ke folder mock ERP
 cd mock_erp_data_engineer
 docker compose up -d
 
-# Verifikasi ketersediaan 21 tabel dan data seed ERP
+# Verifikasi ketersediaan tabel dan seed data
 python scripts/verify_erp_db.py
 ```
-Database sumber ERP akan aktif di port **`5433`** (`postgresql://erp_user:erp_secret_123@localhost:5433/isp_erp_db`). Pada file `backend/.env`, ubah:
+Lalu pada file `.env`, arahkan ke:
 ```ini
+ERP_DATABASE_URL=postgresql+asyncpg://erp_user:erp_secret_123@localhost:5433/isp_erp_db
 ERP_MOCK_DATA=false
-ERP_DB_PORT=5433
 ```
 
 ---
 
-### E. Panduan Tunneling Ngrok
+### E. Panduan Sinkronisasi & Ekstraksi Data Manual (Demo & On-Demand)
+
+Secara *default*, sistem menjalankan ekstraksi data otomatis via cronjob latar belakang setiap tengah malam (00:05 UTC dan 00:30 UTC). 
+
+Untuk kebutuhan **pengujian, verifikasi, atau saat demo aplikasi**, Anda dapat memicu proses penarikan data secara langsung (*on-demand*) tanpa menunggu jadwal cronjob melalui cara-cara berikut:
+
+#### 1. Melalui Antarmuka Interaktif Swagger UI (Direkomendasikan saat Demo)
+1. Jalankan backend: `uvicorn app.main:app --reload`
+2. Buka browser: **`http://localhost:8000/docs`**
+3. Gulir ke tag **`Ingestion & Pipeline`**:
+   * **`POST /api/v1/ingestion/trigger/subscription_sync`**: Untuk menyinkronkan data pelanggan, paket internet, dan status langganan.
+   * **`POST /api/v1/ingestion/trigger/billing_sync`**: Untuk menyinkronkan data faktur tagihan (*sales invoice*) dan pembayaran (*sales payment*).
+4. Klik **Try it out** $\to$ atur payload (opsional) $\to$ klik **Execute**.
+5. Response akan menampilkan ringkasan data yang berhasil ditarik: `rows_extracted`, `rows_staged`, dan `rows_fact`.
+
+#### 2. Melalui Terminal / cURL
+Jalankan perintah berikut di terminal:
+
+```bash
+# A. Sinkronisasi Data Pelanggan & Paket
+curl -X POST "http://localhost:8000/api/v1/ingestion/trigger/subscription_sync" \
+  -H "Content-Type: application/json" \
+  -d '{"limit": 5000, "force_full_refresh": true}'
+
+# B. Sinkronisasi Data Tagihan & Transaksi Pembayaran
+curl -X POST "http://localhost:8000/api/v1/ingestion/trigger/billing_sync" \
+  -H "Content-Type: application/json" \
+  -d '{"limit": 5000, "force_full_refresh": true}'
+```
+
+#### 3. Melalui Skrip Verifikasi Langsung
+Anda juga dapat mengecek koneksi dan menarik cuplikan record live dari database Data Engineer tanpa menyalakan server FastAPI:
+```bash
+source .venv/bin/activate
+python backend/scripts/verify_mysql_ingestion.py
+```
+
+#### 4. Memeriksa Status & Riwayat Batch Ingestion
+Gunakan endpoint audit untuk melihat log audit kualitas data dan status batch terakhir:
+```bash
+# Cek mode koneksi aktif (LIVE_ERP atau MOCK_GENERATOR)
+curl -s "http://localhost:8000/api/v1/ingestion/source-mode"
+
+# Cek riwayat batch sinkronisasi
+curl -s "http://localhost:8000/api/v1/ingestion/history?limit=5"
+
+# Cek jadwal cronjob APScheduler yang sedang aktif
+curl -s "http://localhost:8000/api/v1/ingestion/schedules"
+```
+
+---
+
+### F. Panduan Tunneling Ngrok
 
 Untuk menghubungkan API lokal ke Frontend publik / remote:
 

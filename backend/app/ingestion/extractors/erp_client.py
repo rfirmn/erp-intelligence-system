@@ -161,6 +161,8 @@ class ERPConnector:
                 logger.info("Initializing live read-only connection to external ERP database...")
                 if url.startswith("postgresql://"):
                     url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+                elif url.startswith("mysql://"):
+                    url = url.replace("mysql://", "mysql+asyncmy://", 1)
                 self._engine = create_async_engine(url, echo=False, pool_size=settings.ERP_DB_POOL_SIZE)
         else:
             logger.info("ERPConnector running in MOCK GENERATOR mode. Data will be tagged as mock.")
@@ -172,6 +174,16 @@ class ERPConnector:
     @property
     def source_type(self) -> str:
         return "MOCK_GENERATOR" if self._is_mock else "LIVE_ERP"
+
+    @property
+    def dialect_name(self) -> str:
+        if self._engine:
+            return self._engine.dialect.name
+        return "mock"
+
+    @property
+    def is_mysql(self) -> bool:
+        return self.dialect_name == "mysql"
 
     async def execute_query(self, query_str: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """Run SQL query against external ERP read-only database."""
