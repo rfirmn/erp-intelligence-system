@@ -33,7 +33,14 @@ class SubscriptionExtractor(BaseExtractor):
             return mock_gen.generate_subscriptions(since=since, until=until, count=120)
 
         # Live SQL query matching feature_store_schema_design.md
-        query = """
+        where_clauses = ["(cs.updated_at IS NULL OR cs.updated_at <= :until)"]
+        params: Dict[str, Any] = {"until": until, "limit": limit}
+        if since is not None:
+            where_clauses.append("COALESCE(cs.updated_at, cs.created_at, cs.start_date) > :since")
+            params["since"] = since
+
+        where_sql = " AND ".join(where_clauses)
+        query = f"""
             SELECT 
                 cs.id AS source_id,
                 cs.customer_id,
@@ -49,16 +56,14 @@ class SubscriptionExtractor(BaseExtractor):
                 cs.monthly_fee,
                 cs.billing_day,
                 cs.status,
-                cs.updated_at AS source_updated_at
+                COALESCE(cs.updated_at, cs.created_at, CURRENT_TIMESTAMP) AS source_updated_at
             FROM customer_subscription cs
             LEFT JOIN customer c ON c.id = cs.customer_id
             LEFT JOIN internet_package p ON p.id = cs.package_id
-            WHERE (CAST(:since AS TIMESTAMP) IS NULL OR cs.updated_at > CAST(:since AS TIMESTAMP))
-              AND cs.updated_at <= :until
-            ORDER BY cs.updated_at ASC
+            WHERE {where_sql}
+            ORDER BY cs.id ASC
             LIMIT :limit;
         """
-        params = {"since": since, "until": until, "limit": limit}
         rows = await erp_connector.execute_query(query, params)
         for r in rows:
             r["_is_mock"] = False

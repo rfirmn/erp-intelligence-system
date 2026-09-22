@@ -33,57 +33,131 @@ class BillingExtractor(BaseExtractor):
             subs = subscriptions_cache or mock_gen.generate_subscriptions()
             return mock_gen.generate_invoices_and_payments(subs, periods=3)
 
-        # Live ERP queries for sales_invoice
-        invoice_query = """
-            SELECT 
-                si.id AS source_id,
-                si.customer_subscription_id,
-                cs.customer_id,
-                si.invoice_number,
-                si.invoice_period,
-                si.invoice_date,
-                si.due_date,
-                si.total_amount::float AS total_amount,
-                si.payment_status,
-                COALESCE(SUM(sp.amount), 0.0)::float AS paid_amount,
-                CASE 
-                    WHEN MAX(sp.payment_date) IS NOT NULL AND MAX(sp.payment_date) > si.due_date 
-                        THEN (MAX(sp.payment_date) - si.due_date)::int
-                    WHEN si.payment_status IN ('OVERDUE', 'UNPAID') AND CURRENT_DATE > si.due_date 
-                        THEN (CURRENT_DATE - si.due_date)::int
-                    ELSE 0 
-                END AS days_late,
-                si.updated_at AS source_updated_at
-            FROM sales_invoice si
-            LEFT JOIN customer_subscription cs ON si.customer_subscription_id = cs.id
-            LEFT JOIN sales_payment sp ON si.id = sp.sales_invoice_id AND sp.payment_status = 'SUCCESS'
-            WHERE (CAST(:since AS TIMESTAMP) IS NULL OR si.updated_at > CAST(:since AS TIMESTAMP))
-              AND si.updated_at <= :until
-            GROUP BY si.id, cs.customer_id
-            ORDER BY si.updated_at ASC
-            LIMIT :limit;
-        """
-        payment_query = """
-            SELECT 
-                id AS source_id,
-                sales_invoice_id,
-                payment_date,
-                amount,
-                payment_status,
-                created_at AS source_created_at
-            FROM sales_payment
-            WHERE (CAST(:since AS TIMESTAMP) IS NULL OR created_at > CAST(:since AS TIMESTAMP))
-              AND created_at <= :until
-            ORDER BY created_at ASC
-            LIMIT :limit;
-        """
-        params = {"since": since, "until": until, "limit": limit}
+        # Check dialect
+        if erp_connector.is_mysql:
+            inv_where = ["(si.updated_at IS NULL OR si.updated_at <= :until)"]
+            pay_where = ["(created_at IS NULL OR created_at <= :until)"]
+            params: Dict[str, Any] = {"until": until, "limit": limit}
+            if since is not None:
+                inv_where.append("COALESCE(si.updated_at, si.created_at, si.invoice_date) > :since")
+                pay_where.append("COALESCE(created_at, payment_date) > :since")
+                params["since"] = since
+
+            inv_where_sql = " AND ".join(inv_where)
+            pay_where_sql = " AND ".join(pay_where)
+
+            invoice_query = f"""
+                SELECT 
+                    si.id AS source_id,
+                    si.customer_subscription_id,
+                    cs.customer_id,
+                    si.invoice_number,
+                    si.invoice_period,
+                    si.invoice_date,
+                    si.due_date,
+                    si.total_amount,
+                    si.payment_status,
+                    COALESCE(SUM(sp.amount_paid), 0.0) AS paid_amount,
+                    CASE 
+                        WHEN MAX(sp.payment_date) IS NOT NULL AND MAX(sp.payment_date) > si.due_date 
+                            THEN DATEDIFF(MAX(sp.payment_date), si.due_date)
+                        WHEN si.payment_status IN ('OVERDUE', 'UNPAID') AND CURRENT_DATE > si.due_date 
+                            THEN DATEDIFF(CURRENT_DATE, si.due_date)
+                        ELSE 0 
+                    END AS days_late,
+                    COALESCE(si.updated_at, si.created_at, CURRENT_TIMESTAMP) AS source_updated_at
+                FROM sales_invoice si
+                LEFT JOIN customer_subscription cs ON si.customer_subscription_id = cs.id
+                LEFT JOIN sales_payment sp ON si.id = sp.sales_invoice_id AND sp.status = 'PAID'
+                WHERE {inv_where_sql}
+                GROUP BY si.id, cs.customer_id, si.customer_subscription_id, si.invoice_number,
+                         si.invoice_period, si.invoice_date, si.due_date, si.total_amount,
+                         si.payment_status, si.updated_at, si.created_at
+                ORDER BY si.id ASC
+                LIMIT :limit;
+            """
+            payment_query = f"""
+                SELECT 
+                    id AS source_id,
+                    sales_invoice_id,
+                    payment_date,
+                    amount_paid AS amount,
+                    status AS payment_status,
+                    COALESCE(created_at, payment_date, CURRENT_TIMESTAMP) AS source_created_at
+                FROM sales_payment
+                WHERE {pay_where_sql}
+                ORDER BY id ASC
+                LIMIT :limit;
+            """
+        else:
+            # PostgreSQL query
+            inv_where = ["si.updated_at <= :until"]
+            pay_where = ["created_at <= :until"]
+            params = {"until": until, "limit": limit}
+            if since is not None:
+                inv_where.append("si.updated_at > :since")
+                pay_where.append("created_at > :since")
+                params["since"] = since
+
+            inv_where_sql = " AND ".join(inv_where)
+            pay_where_sql = " AND ".join(pay_where)
+
+            invoice_query = f"""
+                SELECT 
+                    si.id AS source_id,
+                    si.customer_subscription_id,
+                    cs.customer_id,
+                    si.invoice_number,
+                    si.invoice_period,
+                    si.invoice_date,
+                    si.due_date,
+                    si.total_amount::float AS total_amount,
+                    si.payment_status,
+                    COALESCE(SUM(sp.amount), 0.0)::float AS paid_amount,
+                    CASE 
+                        WHEN MAX(sp.payment_date) IS NOT NULL AND MAX(sp.payment_date) > si.due_date 
+                            THEN (MAX(sp.payment_date) - si.due_date)::int
+                        WHEN si.payment_status IN ('OVERDUE', 'UNPAID') AND CURRENT_DATE > si.due_date 
+                            THEN (CURRENT_DATE - si.due_date)::int
+                        ELSE 0 
+                    END AS days_late,
+                    si.updated_at AS source_updated_at
+                FROM sales_invoice si
+                LEFT JOIN customer_subscription cs ON si.customer_subscription_id = cs.id
+                LEFT JOIN sales_payment sp ON si.id = sp.sales_invoice_id AND sp.payment_status = 'SUCCESS'
+                WHERE {inv_where_sql}
+                GROUP BY si.id, cs.customer_id
+                ORDER BY si.updated_at ASC
+                LIMIT :limit;
+            """
+            payment_query = f"""
+                SELECT 
+                    id AS source_id,
+                    sales_invoice_id,
+                    payment_date,
+                    amount,
+                    payment_status,
+                    created_at AS source_created_at
+                FROM sales_payment
+                WHERE {pay_where_sql}
+                ORDER BY created_at ASC
+                LIMIT :limit;
+            """
+
         invoices = await erp_connector.execute_query(invoice_query, params)
         payments = await erp_connector.execute_query(payment_query, params)
 
         for inv in invoices:
             inv["_is_mock"] = False
+            if "total_amount" in inv and inv["total_amount"] is not None:
+                inv["total_amount"] = float(inv["total_amount"])
+            if "paid_amount" in inv and inv["paid_amount"] is not None:
+                inv["paid_amount"] = float(inv["paid_amount"])
+            if "days_late" in inv and inv["days_late"] is not None:
+                inv["days_late"] = int(inv["days_late"])
         for pay in payments:
             pay["_is_mock"] = False
+            if "amount" in pay and pay["amount"] is not None:
+                pay["amount"] = float(pay["amount"])
 
         return {"invoices": invoices, "payments": payments}

@@ -109,16 +109,21 @@ class Settings(BaseSettings):
         )
 
     def get_erp_database_url(self) -> str:
-        """Assemble asyncpg PostgreSQL connection URL for ERP source."""
+        """Assemble async connection URL for ERP source (supports PostgreSQL asyncpg and MySQL asyncmy)."""
         if self.ERP_DATABASE_URL:
             url = self.ERP_DATABASE_URL
             if url.startswith("postgresql://"):
                 url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            elif url.startswith("mysql://"):
+                url = url.replace("mysql://", "mysql+asyncmy://", 1)
             return url
 
         auth = self.ERP_DB_USER
         if self.ERP_DB_PASSWORD:
             auth += f":{self.ERP_DB_PASSWORD}"
+
+        if self.ERP_DB_PORT in (3306, 3307) or "mysql" in self.ERP_DB_HOST.lower():
+            return f"mysql+asyncmy://{auth}@{self.ERP_DB_HOST}:{self.ERP_DB_PORT}/{self.ERP_DB_NAME}"
 
         return (
             f"postgresql+asyncpg://{auth}@{self.ERP_DB_HOST}:{self.ERP_DB_PORT}/{self.ERP_DB_NAME}"

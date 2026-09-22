@@ -49,6 +49,7 @@ services:
     networks:
       - isp_internal_net
       - erp_shared_net
+      - garnet_net
 
 volumes:
   postgres_fs_data:
@@ -60,4 +61,7 @@ networks:
     driver: bridge
   erp_shared_net:
     name: erp_shared_net
+    external: true
+  garnet_net:
+    name: garnet-network
     external: true
